@@ -1,5 +1,16 @@
 {
-  "dependencies": {
-    "axios": "^1.17.0"
+  "name": "atelier",
+  "private": true,
+  "workspaces": [
+    "atelier-admin",
+    "atelier-customer"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w atelier-admin\" \"npm run dev -w atelier-customer\"",
+    "dev:admin": "npm run dev -w atelier-admin",
+    "dev:customer": "npm run dev -w atelier-customer"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

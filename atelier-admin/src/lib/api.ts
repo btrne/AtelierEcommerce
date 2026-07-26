@@ -86,8 +86,8 @@ async function request<T>(
   if (res.status === 401) {
     removeToken();
     removeUserProfile();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login?reason=expired";
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:expired"));
     }
     throw new Error("Unauthorized");
   }

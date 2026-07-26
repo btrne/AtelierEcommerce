@@ -13,6 +13,7 @@ public class VnPayService : IVnPayService
     private readonly string _tmnCode;
     private readonly string _hashSecret;
     private readonly string _defaultReturnUrl;
+    private readonly TimeZoneInfo _timeZone;
 
     public VnPayService(IConfiguration configuration)
     {
@@ -21,15 +22,19 @@ public class VnPayService : IVnPayService
         _tmnCode = section["TmnCode"]!;
         _hashSecret = section["HashSecret"]!;
         _defaultReturnUrl = section["ReturnUrl"]!;
+        _timeZone = TimeZoneInfo.FindSystemTimeZoneById(
+            configuration["TimeZone:Id"] ?? "SE Asia Standard Time");
     }
 
     public string CreatePaymentUrl(Order order, string? returnUrl = null)
     {
         var host = returnUrl ?? _defaultReturnUrl;
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
 
-        var txnRef = $"{order.Id}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+        var txnRef = $"{order.Id}{now:yyyyMMddHHmmss}";
         var amount = ((long)(order.TotalAmount * 100)).ToString();
-        var createDate = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var createDate = now.ToString("yyyyMMddHHmmss");
+        var expireDate = now.AddMinutes(15).ToString("yyyyMMddHHmmss");
 
         var vnpParams = new SortedDictionary<string, string>
         {
@@ -38,6 +43,7 @@ public class VnPayService : IVnPayService
             { "vnp_TmnCode", _tmnCode },
             { "vnp_Amount", amount },
             { "vnp_CreateDate", createDate },
+            { "vnp_ExpireDate", expireDate },
             { "vnp_CurrCode", "VND" },
             { "vnp_IpAddr", "127.0.0.1" },
             { "vnp_Locale", "vn" },

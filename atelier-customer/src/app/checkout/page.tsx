@@ -182,19 +182,19 @@ function CheckoutContent() {
       }
 
       const defaultAddr = addrData.find((a) => a.isDefault) || addrData[0];
-      if (defaultAddr) await fillAddress(defaultAddr);
+      if (defaultAddr) await fillAddress(defaultAddr, provincesData);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }
 
-  async function fillAddress(addr: AddressDto) {
+  async function fillAddress(addr: AddressDto, provincesList?: Province[]) {
     setRecipientName(addr.fullName);
     setRecipientPhone(addr.phoneNumber);
     setShippingAddressDetail(addr.street);
     setSelectedAddressId(addr.id);
 
     try {
-      const province = provinces.find((p: Province) => p.name === addr.city);
+      const province = (provincesList ?? provinces).find((p: Province) => p.name === addr.city);
       if (province) {
         setSelectedProvince(province.code);
         const districtList = await locationsApi.districts(province.code);

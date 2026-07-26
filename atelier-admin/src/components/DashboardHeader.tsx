@@ -53,7 +53,7 @@ export default function DashboardHeader() {
 
   const handleLogout = () => {
     auth.logout();
-    router.push("/login");
+    window.dispatchEvent(new CustomEvent("auth:expired"));
   };
 
   const initials = profile?.fullName

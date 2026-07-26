@@ -85,7 +85,7 @@ public class GetRevenueByPeriodQueryHandler : IRequestHandler<GetRevenueByPeriod
                 })
                 .Select(g => new PeriodRevenueDto
                 {
-                    Label = $"Tuần {GetIso8601WeekOfYear(g.Key)}/{g.Key.Year}",
+                    Label = $"{g.Key:dd/MM} - {g.Key.AddDays(6):dd/MM}",
                     StartDate = g.Key,
                     TotalRevenue = g.Sum(o => o.TotalAmount),
                     OrderCount = g.Count(),

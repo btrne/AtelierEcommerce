@@ -42,7 +42,7 @@ public class PaymentsController : ControllerBase
         }
 
         var txnRef = queryParams.GetValueOrDefault("vnp_TxnRef");
-        var orderId = int.Parse(txnRef?.Split('_')[0] ?? "0");
+        var orderId = int.Parse(txnRef?.Length > 14 ? txnRef[..^14] : txnRef ?? "0");
         var responseCode = queryParams.GetValueOrDefault("vnp_ResponseCode");
         var transactionNo = queryParams.GetValueOrDefault("vnp_TransactionNo");
 
@@ -103,7 +103,7 @@ public class PaymentsController : ControllerBase
         }
 
         var txnRef = queryParams.GetValueOrDefault("vnp_TxnRef");
-        var orderId = int.Parse(txnRef?.Split('_')[0] ?? "0");
+        var orderId = int.Parse(txnRef?.Length > 14 ? txnRef[..^14] : txnRef ?? "0");
         var responseCode = queryParams.GetValueOrDefault("vnp_ResponseCode");
         var transactionNo = queryParams.GetValueOrDefault("vnp_TransactionNo");
         var amount = queryParams.GetValueOrDefault("vnp_Amount");

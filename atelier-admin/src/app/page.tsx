@@ -24,12 +24,12 @@ import type {
   RankedProductDto,
 } from "@/lib/types";
 
-const PERIOD_OPTIONS: { label: string; value: PeriodType; periods: number }[] = [
-  { label: "NGÀY", value: "Daily", periods: 30 },
-  { label: "TUẦN", value: "Weekly", periods: 12 },
-  { label: "THÁNG", value: "Monthly", periods: 12 },
-  { label: "QUÝ", value: "Quarterly", periods: 8 },
-  { label: "NĂM", value: "Yearly", periods: 5 },
+const PERIOD_OPTIONS: { label: string; value: PeriodType; periods: number; maxBars: number }[] = [
+  { label: "NGÀY", value: "Daily", periods: 90, maxBars: 7 },
+  { label: "TUẦN", value: "Weekly", periods: 24, maxBars: 8 },
+  { label: "THÁNG", value: "Monthly", periods: 24, maxBars: 12 },
+  { label: "QUÝ", value: "Quarterly", periods: 12, maxBars: 8 },
+  { label: "NĂM", value: "Yearly", periods: 10, maxBars: 5 },
 ];
 
 const BAR_COLORS = [
@@ -80,16 +80,16 @@ export default function Dashboard() {
   const [topSearched, setTopSearched] = useState<RankedProductDto[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("Daily");
   const [bottomTab, setBottomTab] = useState<BottomTab>("products");
-  const [analyticsTab, setAnalyticsTab] = useState<string>("addToCart");
-  const [viewedDays, setViewedDays] = useState(7);
+  const [analyticsTab, setAnalyticsTab] = useState<string>("viewed");
   const [analyticsDays, setAnalyticsDays] = useState(7);
   const [loading, setLoading] = useState(true);
 
   const fetchPeriodData = useCallback(async (period: PeriodType) => {
     try {
       const opt = PERIOD_OPTIONS.find((o) => o.value === period);
-      const data = await dashboard.revenueByPeriod(period, opt?.periods ?? 12);
-      setPeriodData(data);
+      const allData = await dashboard.revenueByPeriod(period, opt?.periods ?? 12);
+      const limited = allData.slice(-(opt?.maxBars ?? 12));
+      setPeriodData(limited);
     } catch (err) {
       console.error("Period fetch error:", err);
     }
@@ -160,28 +160,18 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  const handleViewedDaysChange = async (days: number) => {
-    setViewedDays(days);
-    try {
-      const [viewed, keywords] = await Promise.all([
-        dashboard.topViewed(days, 5),
-        dashboard.searchKeywords(days, 5),
-      ]);
-      setTopViewed(viewed);
-      setSearchKeywords(keywords);
-    } catch (err) {
-      console.error("Viewed data fetch error:", err);
-    }
-  };
-
   const handleAnalyticsDaysChange = async (days: number) => {
     setAnalyticsDays(days);
     try {
-      const [addToCart, wishlist, searched] = await Promise.all([
+      const [viewed, keywords, addToCart, wishlist, searched] = await Promise.all([
+        dashboard.topViewed(days, 5),
+        dashboard.searchKeywords(days, 10),
         dashboard.topAddToCart(days, 5),
         dashboard.topWishlist(days, 5),
         dashboard.topSearched(days, 5),
       ]);
+      setTopViewed(viewed);
+      setSearchKeywords(keywords);
       setTopAddToCart(addToCart);
       setTopWishlist(wishlist);
       setTopSearched(searched);
@@ -511,18 +501,13 @@ export default function Dashboard() {
                   ))}
                 </div>
                 <div className="flex gap-1.5" style={{ height: 50 }}>
-                  {periodData.map((d, i) => {
-                    const skipLabel = periodData.length > 20 && i % 3 !== 0;
-                    return (
+                  {periodData.map((d, i) => (
                       <div key={"label-" + i} className="flex-1 text-center overflow-hidden pt-1">
-                        {!skipLabel && (
-                          <span className="text-[9px] text-on-surface-variant block leading-tight">
-                            {d.label.length > 7 ? d.label.slice(0, 6) + "…" : d.label}
-                          </span>
-                        )}
+                        <span className="text-[9px] text-on-surface-variant block leading-tight">
+                          {d.label}
+                        </span>
                       </div>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
             ) : (
@@ -603,77 +588,6 @@ export default function Dashboard() {
         </section>
       </div>
 
-      {/* Top Viewed + Search Keywords */}
-      {(topViewed.length > 0 || searchKeywords.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {topViewed.length > 0 && (
-            <section className="space-y-4">
-              <div className="flex items-end justify-between border-b-2 border-secondary pb-2">
-                <h3 className="font-label-caps text-label-caps text-primary">
-                  SẢN PHẨM XEM NHIỀU
-                </h3>
-                <div className="flex space-x-3">
-                  {[
-                    { label: "7 NGÀY", days: 7 },
-                    { label: "30 NGÀY", days: 30 },
-                    { label: "90 NGÀY", days: 90 },
-                    { label: "365 NGÀY", days: 365 },
-                  ].map((opt) => (
-                    <button
-                      key={opt.days}
-                      onClick={() => handleViewedDaysChange(opt.days)}
-                      className={`font-label-caps text-[10px] transition-colors ${
-                        viewedDays === opt.days
-                          ? "text-primary border-b border-primary"
-                          : "text-on-surface-variant hover:text-primary"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                {topViewed.map((item, i) => (
-                  <div key={item.productId + "-" + i} className="flex items-center gap-3 p-3 border border-outline-variant bg-surface hover:bg-surface-container-low transition-colors">
-                    <span className="font-label-caps text-[14px] text-secondary w-6 text-center">{String(i + 1).padStart(2, "0")}</span>
-                    <div className="w-10 h-10 bg-surface-container-high border border-outline-variant flex-shrink-0 overflow-hidden">
-                      {item.thumbnailUrl ? (
-                        <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="material-symbols-outlined flex items-center justify-center h-full text-on-surface-variant/30 text-sm">image</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-body-md font-bold text-primary truncate">{item.productName}</p>
-                    </div>
-                    <span className="font-body-md font-bold text-secondary">{item.views}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-          {searchKeywords.length > 0 && (
-            <section className="space-y-4">
-              <h3 className="font-label-caps text-label-caps text-primary border-b-2 border-secondary pb-2">
-                TỪ KHÓA TÌM KIẾM ({viewedDays} NGÀY)
-              </h3>
-              <div className="space-y-2">
-                {searchKeywords.map((item, i) => (
-                  <div key={item.keyword} className="flex items-center gap-3 p-3 border border-outline-variant bg-surface hover:bg-surface-container-low transition-colors">
-                    <span className="font-label-caps text-[14px] text-secondary w-6 text-center">{String(i + 1).padStart(2, "0")}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-body-md font-bold text-primary truncate">&ldquo;{item.keyword}&rdquo;</p>
-                    </div>
-                    <span className="font-body-md font-bold text-secondary">{item.count}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      )}
-
       {/* Product Analytics Section */}
       <section className="space-y-6">
         <div className="flex items-end justify-between border-b-2 border-secondary pb-2">
@@ -703,9 +617,11 @@ export default function Dashboard() {
         </div>
         <div className="flex space-x-8 border-b border-outline-variant/30">
           {([
+            { key: "viewed", label: "XEM NHIỀU" },
             { key: "addToCart", label: "THÊM GIỎ" },
             { key: "wishlist", label: "YÊU THÍCH" },
             { key: "searched", label: "TÌM KIẾM" },
+            { key: "keywords", label: "TỪ KHÓA" },
           ]).map((tab) => (
             <button
               key={tab.key}
@@ -721,33 +637,55 @@ export default function Dashboard() {
           ))}
         </div>
         <p className="font-body-md text-body-md text-on-surface-variant -mt-2">
-          {analyticsTab === "addToCart"
+          {analyticsTab === "viewed"
+            ? "Sản phẩm được xem nhiều nhất"
+            : analyticsTab === "addToCart"
             ? "Sản phẩm được thêm vào giỏ hàng nhiều nhất"
             : analyticsTab === "wishlist"
             ? "Sản phẩm được yêu thích nhiều nhất"
-            : "Sản phẩm được tìm kiếm nhiều nhất"}
+            : analyticsTab === "searched"
+            ? "Sản phẩm được tìm kiếm nhiều nhất"
+            : "Từ khóa được tìm kiếm nhiều nhất"}
         </p>
         <div className="space-y-2">
-          {(analyticsTab === "addToCart" ? topAddToCart : analyticsTab === "wishlist" ? topWishlist : topSearched).map((item, i) => (
-            <div key={item.productId + "-" + i} className="flex items-center gap-3 p-3 border border-outline-variant bg-surface hover:bg-surface-container-low transition-colors">
-              <span className="font-label-caps text-[14px] text-secondary w-6 text-center">{String(i + 1).padStart(2, "0")}</span>
-              <div className="w-10 h-10 bg-surface-container-high border border-outline-variant flex-shrink-0 overflow-hidden">
-                {item.thumbnailUrl ? (
-                  <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="material-symbols-outlined flex items-center justify-center h-full text-on-surface-variant/30 text-sm">image</span>
-                )}
+          {analyticsTab === "keywords" ? (
+            searchKeywords.length > 0 ? searchKeywords.map((item, i) => (
+              <div key={item.keyword + "-" + i} className="flex items-center gap-3 p-3 border border-outline-variant bg-surface hover:bg-surface-container-low transition-colors">
+                <span className="font-label-caps text-[14px] text-secondary w-6 text-center">{String(i + 1).padStart(2, "0")}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-body-md font-bold text-primary truncate">&ldquo;{item.keyword}&rdquo;</p>
+                </div>
+                <span className="font-body-md font-bold text-secondary">{item.count}</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-body-md font-bold text-primary truncate">{item.productName}</p>
-              </div>
-              <span className="font-body-md font-bold text-secondary">{item.count}</span>
-            </div>
-          ))}
-          {((analyticsTab === "addToCart" ? topAddToCart : analyticsTab === "wishlist" ? topWishlist : topSearched).length === 0) && (
-            <p className="font-body-md text-on-surface-variant italic py-8 text-center">
-              Chưa có dữ liệu
-            </p>
+            )) : (
+              <p className="font-body-md text-on-surface-variant italic py-8 text-center">
+                Chưa có dữ liệu
+              </p>
+            )
+          ) : (
+            <>
+              {(analyticsTab === "viewed" ? topViewed : analyticsTab === "addToCart" ? topAddToCart : analyticsTab === "wishlist" ? topWishlist : topSearched).map((item, i) => (
+                <div key={item.productId + "-" + i} className="flex items-center gap-3 p-3 border border-outline-variant bg-surface hover:bg-surface-container-low transition-colors">
+                  <span className="font-label-caps text-[14px] text-secondary w-6 text-center">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="w-10 h-10 bg-surface-container-high border border-outline-variant flex-shrink-0 overflow-hidden">
+                    {item.thumbnailUrl ? (
+                      <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined flex items-center justify-center h-full text-on-surface-variant/30 text-sm">image</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body-md font-bold text-primary truncate">{item.productName}</p>
+                  </div>
+                  <span className="font-body-md font-bold text-secondary">{analyticsTab === "viewed" ? (item as TopViewedProductDto).views : (item as RankedProductDto).count}</span>
+                </div>
+              ))}
+              {((analyticsTab === "viewed" ? topViewed : analyticsTab === "addToCart" ? topAddToCart : analyticsTab === "wishlist" ? topWishlist : topSearched).length === 0) && (
+                <p className="font-body-md text-on-surface-variant italic py-8 text-center">
+                  Chưa có dữ liệu
+                </p>
+              )}
+            </>
           )}
         </div>
       </section>

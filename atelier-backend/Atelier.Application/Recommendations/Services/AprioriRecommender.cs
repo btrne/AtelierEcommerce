@@ -26,6 +26,7 @@ public class HighUtilityItemsetResult
     public List<int> ProductIds { get; set; } = new();
     public decimal TotalUtility { get; set; }
     public decimal WeightedUtility { get; set; }
+    public decimal OriginalTotalPrice { get; set; }
     public int TransactionCount { get; set; }
     public double Support { get; set; }
     public double Confidence { get; set; }
@@ -39,8 +40,30 @@ public class AprioriRecommender
 
     private const double MinSupport = 0.02;
     private const double MinConfidence = 0.3;
-    private const decimal MinWeightedUtility = 2_000_000m;
+    private const decimal MinWeightedUtility = 1_000_000m;
     private const int MaxItemsetSize = 4;
+
+    private sealed class ListOfIntComparer : IEqualityComparer<List<int>>
+    {
+        public bool Equals(List<int>? x, List<int>? y)
+        {
+            if (ReferenceEquals(x, y)) return true;
+            if (x is null || y is null) return false;
+            if (x.Count != y.Count) return false;
+            for (int i = 0; i < x.Count; i++)
+                if (x[i] != y[i]) return false;
+            return true;
+        }
+
+        public int GetHashCode(List<int> obj)
+        {
+            var hash = new HashCode();
+            foreach (var v in obj) hash.Add(v);
+            return hash.ToHashCode();
+        }
+    }
+
+    private static readonly ListOfIntComparer ItemsetComparer = new();
 
     public AprioriRecommender(IApplicationDbContext context)
     {
@@ -49,20 +72,23 @@ public class AprioriRecommender
 
     private async Task<List<List<int>>> LoadTransactionsAsync(CancellationToken cancellationToken)
     {
-        return await _context.OrderItems
+        var rows = await _context.OrderItems
+            .AsNoTracking()
             .Where(oi => oi.Order.OrderStatus == "Completed" && oi.ProductVariant != null)
-            .GroupBy(oi => oi.OrderId)
-            .Select(g => g
-                .Select(oi => oi.ProductVariant!.ProductId)
-                .Distinct()
-                .ToList())
+            .Select(oi => new { oi.OrderId, oi.ProductVariant!.ProductId })
             .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(r => r.OrderId)
+            .Select(g => g.Select(r => r.ProductId).Distinct().ToList())
+            .ToList();
     }
 
     private async Task<List<(int OrderId, List<UtilityItem> Items)>> LoadUtilityTransactionsAsync(
         CancellationToken cancellationToken)
     {
         var orderItems = await _context.OrderItems
+            .AsNoTracking()
             .Where(oi => oi.Order.OrderStatus == "Completed" && oi.ProductVariant != null)
             .Select(oi => new
             {
@@ -78,10 +104,14 @@ public class AprioriRecommender
             .Select(g => (
                 OrderId: g.Key,
                 Items: g.GroupBy(x => x.ProductId)
-                    .Select(pg => new UtilityItem(
-                        pg.Key,
-                        pg.Sum(x => x.Quantity),
-                        pg.Average(x => x.UnitPrice)))
+                    .Select(pg =>
+                    {
+                        var totalQty = pg.Sum(x => x.Quantity);
+                        return new UtilityItem(
+                            pg.Key,
+                            totalQty,
+                            totalQty > 0 ? pg.Sum(x => x.Quantity * x.UnitPrice) / totalQty : 0m);
+                    })
                     .ToList()))
             .ToList();
     }
@@ -159,29 +189,37 @@ public class AprioriRecommender
         var frequentProducts = GetFrequentItems(productCounts, totalTransactions);
         if (frequentProducts.Count < 2) return new List<FrequentItemset>();
 
-        var itemsetCounts = new Dictionary<List<int>, int>();
-        foreach (var t in transactions)
+        var allFrequentItemsets = new List<List<int>>();
+        var allFrequentSets = new HashSet<List<int>>(ItemsetComparer);
+
+        var sortedFrequent = frequentProducts.OrderBy(x => x).ToList();
+        var pairs = GetCombinations(sortedFrequent, 2).ToList();
+        var frequent2 = CountAndFilterItemsets(transactions, pairs, totalTransactions, frequentProducts);
+        allFrequentItemsets.AddRange(frequent2);
+        allFrequentSets.UnionWith(frequent2);
+
+        var currentLevel = frequent2;
+        for (int size = 3; size <= MaxItemsetSize && currentLevel.Count > 0; size++)
         {
-            var items = t.Where(p => frequentProducts.Contains(p)).Distinct().OrderBy(x => x).ToList();
-            for (int size = 2; size <= Math.Min(MaxItemsetSize, items.Count); size++)
-            {
-                foreach (var combo in GetCombinations(items.ToHashSet(), size))
-                {
-                    var key = combo;
-                    itemsetCounts.TryGetValue(key, out var count);
-                    itemsetCounts[key] = count + 1;
-                }
-            }
+            var candidates = GenerateAprioriCandidates(currentLevel);
+            if (candidates.Count == 0) break;
+            candidates = PruneCandidates(candidates, allFrequentSets);
+            if (candidates.Count == 0) break;
+
+            var frequentK = CountAndFilterItemsets(transactions, candidates, totalTransactions, frequentProducts);
+            allFrequentItemsets.AddRange(frequentK);
+            allFrequentSets.UnionWith(frequentK);
+            currentLevel = frequentK;
         }
 
         var results = new List<FrequentItemset>();
-        foreach (var (itemset, count) in itemsetCounts)
+        foreach (var itemset in allFrequentItemsets)
         {
-            var support = (double)count / totalTransactions;
-            if (support < MinSupport) continue;
+            var supportCount = CountSupport(transactions, itemset, frequentProducts);
+            var support = (double)supportCount / totalTransactions;
 
             var minItemTxnCount = itemset.Min(p => productCounts.TryGetValue(p, out var c) ? c : 0);
-            var confidence = minItemTxnCount > 0 ? (double)count / minItemTxnCount : 0;
+            var confidence = minItemTxnCount > 0 ? (double)supportCount / minItemTxnCount : 0;
 
             var expectedSupport = itemset.Aggregate(1.0, (acc, p) =>
             {
@@ -222,12 +260,10 @@ public class AprioriRecommender
 
         foreach (var transaction in utilityTransactions)
         {
-            var transactionUtility = 0m;
             var seenProducts = new HashSet<int>();
             foreach (var item in transaction.Items)
             {
                 var itemUtility = item.Quantity * item.UnitPrice;
-                transactionUtility += itemUtility;
                 totalUtility += itemUtility;
 
                 itemUtilities.TryGetValue(item.ProductId, out var existing);
@@ -245,6 +281,10 @@ public class AprioriRecommender
 
         var minUtilityThreshold = totalUtility * 0.02m;
 
+        var precomputedTxns = utilityTransactions
+            .Select(t => (t.OrderId, Items: t.Items.ToDictionary(x => x.ProductId)))
+            .ToList();
+
         List<List<int>> candidateItemsets;
         if (candidates != null)
         {
@@ -261,34 +301,52 @@ public class AprioriRecommender
             if (frequentItems.Count < 2) return new List<HighUtilityItemsetResult>();
 
             candidateItemsets = new List<List<int>>();
+
             for (int size = 2; size <= MaxItemsetSize; size++)
             {
-                foreach (var combo in GetCombinations(frequentItems.ToHashSet(), size))
-                {
-                    candidateItemsets.Add(combo);
-                }
+                var allCombos = GetCombinations(frequentItems, size).ToList();
+                var highUtility = FilterByUtility(allCombos, precomputedTxns, minUtilityThreshold);
+                candidateItemsets.AddRange(highUtility);
             }
         }
 
         var results = new List<HighUtilityItemsetResult>();
 
+        var candidateProductIds = candidateItemsets
+            .SelectMany(c => c).Distinct().ToList();
+
+        var productPrices = await _context.ProductVariants
+            .AsNoTracking()
+            .Where(pv => pv.IsActive && candidateProductIds.Contains(pv.ProductId))
+            .GroupBy(pv => pv.ProductId)
+            .Select(g => new { ProductId = g.Key, Price = g.Average(pv => pv.Price) })
+            .ToDictionaryAsync(x => x.ProductId, x => x.Price, cancellationToken);
+
         foreach (var candidate in candidateItemsets)
         {
-            var candidateSet = candidate.ToHashSet();
             var utilitySum = 0m;
             var txnCount = 0;
 
-            foreach (var transaction in utilityTransactions)
+            foreach (var transaction in precomputedTxns)
             {
-                var txnProducts = transaction.Items.ToDictionary(x => x.ProductId);
-                if (!candidateSet.All(p => txnProducts.ContainsKey(p))) continue;
+                var comboUtility = 0m;
+                var containsAll = true;
+
+                foreach (var productId in candidate)
+                {
+                    if (!transaction.Items.TryGetValue(productId, out var item))
+                    {
+                        containsAll = false;
+                        break;
+                    }
+
+                    comboUtility += item.Quantity * item.UnitPrice;
+                }
+
+                if (!containsAll) continue;
 
                 txnCount++;
-                foreach (var productId in candidateSet)
-                {
-                    var item = txnProducts[productId];
-                    utilitySum += item.Quantity * item.UnitPrice;
-                }
+                utilitySum += comboUtility;
             }
 
             if (utilitySum < minUtilityThreshold) continue;
@@ -312,16 +370,20 @@ public class AprioriRecommender
 
             if (weightedUtility < MinWeightedUtility) continue;
 
+            var originalTotalPrice = candidate.Sum(p =>
+                productPrices.TryGetValue(p, out var price) ? price : 0m);
+
             results.Add(new HighUtilityItemsetResult
             {
                 ProductIds = candidate,
                 TotalUtility = utilitySum,
                 WeightedUtility = Math.Round(weightedUtility, 0),
+                OriginalTotalPrice = originalTotalPrice,
                 TransactionCount = txnCount,
                 Support = Math.Round(support, 4),
                 Confidence = Math.Round(confidence, 4),
                 Lift = Math.Round(lift, 4),
-                SuggestedDiscountPercent = CalculateDiscountByWeightedUtility(weightedUtility),
+                SuggestedDiscountPercent = CalculateDiscountByOriginalPrice(originalTotalPrice),
             });
         }
 
@@ -332,10 +394,14 @@ public class AprioriRecommender
 
     private static Dictionary<int, int> CountProductFrequency(List<List<int>> transactions)
     {
-        return transactions
-            .SelectMany(t => t)
-            .GroupBy(p => p)
-            .ToDictionary(g => g.Key, g => g.Count());
+        var counts = new Dictionary<int, int>();
+        foreach (var t in transactions)
+            foreach (var p in t)
+            {
+                counts.TryGetValue(p, out var c);
+                counts[p] = c + 1;
+            }
+        return counts;
     }
 
     private static HashSet<int> GetFrequentItems(Dictionary<int, int> productCounts, int totalTransactions)
@@ -346,13 +412,122 @@ public class AprioriRecommender
             .ToHashSet();
     }
 
-    private static IEnumerable<List<int>> GetCombinations(HashSet<int> items, int size)
+    private static List<List<int>> GenerateAprioriCandidates(List<List<int>> frequentK)
     {
-        var sorted = items.OrderBy(x => x).ToList();
-        return GetCombinationsRecursive(sorted, size, 0);
+        var candidates = new List<List<int>>();
+        for (int i = 0; i < frequentK.Count; i++)
+        {
+            for (int j = i + 1; j < frequentK.Count; j++)
+            {
+                var a = frequentK[i];
+                var b = frequentK[j];
+                if (a.Count < 2) continue;
+
+                bool prefixMatch = true;
+                for (int k = 0; k < a.Count - 1; k++)
+                {
+                    if (a[k] != b[k]) { prefixMatch = false; break; }
+                }
+                if (!prefixMatch) continue;
+
+                var merged = new List<int>(a) { b[^1] };
+                candidates.Add(merged);
+            }
+        }
+        return candidates.Distinct(ItemsetComparer).ToList();
     }
 
-    private static IEnumerable<List<int>> GetCombinationsRecursive(List<int> items, int size, int start)
+    private static List<List<int>> PruneCandidates(
+        List<List<int>> candidates, HashSet<List<int>> frequentK)
+    {
+        return candidates.Where(c =>
+        {
+            for (int i = 0; i < c.Count; i++)
+            {
+                var subset = new List<int>(c.Count - 1);
+                for (int j = 0; j < c.Count; j++)
+                    if (j != i) subset.Add(c[j]);
+                if (!frequentK.Contains(subset)) return false;
+            }
+            return true;
+        }).ToList();
+    }
+
+    private static List<List<int>> CountAndFilterItemsets(
+        List<List<int>> transactions, List<List<int>> candidates,
+        int totalTransactions, HashSet<int> frequentProducts)
+    {
+        var counts = new Dictionary<List<int>, int>(ItemsetComparer);
+        foreach (var t in transactions)
+        {
+            var items = t.Where(p => frequentProducts.Contains(p))
+                .Distinct().OrderBy(x => x).ToList();
+            var itemSet = new HashSet<int>(items);
+            foreach (var candidate in candidates)
+            {
+                if (candidate.All(itemSet.Contains))
+                {
+                    counts.TryGetValue(candidate, out var c);
+                    counts[candidate] = c + 1;
+                }
+            }
+        }
+        return counts
+            .Where(kv => (double)kv.Value / totalTransactions >= MinSupport)
+            .Select(kv => kv.Key)
+            .ToList();
+    }
+
+    private static int CountSupport(
+        List<List<int>> transactions, List<int> itemset, HashSet<int> frequentProducts)
+    {
+        int count = 0;
+        foreach (var t in transactions)
+        {
+            var items = t.Where(p => frequentProducts.Contains(p))
+                .Distinct().OrderBy(x => x).ToList();
+            if (itemset.All(items.Contains)) count++;
+        }
+        return count;
+    }
+
+    private static List<List<int>> FilterByUtility(
+        List<List<int>> candidates,
+        List<(int OrderId, Dictionary<int, UtilityItem> Items)> precomputedTxns,
+        decimal minUtilityThreshold)
+    {
+        var frequent = new List<List<int>>();
+        foreach (var candidate in candidates)
+        {
+            decimal utilitySum = 0;
+            foreach (var txn in precomputedTxns)
+            {
+                decimal comboUtility = 0;
+                var containsAll = true;
+                foreach (var pid in candidate)
+                {
+                    if (!txn.Items.TryGetValue(pid, out var item))
+                    {
+                        containsAll = false;
+                        break;
+                    }
+                    comboUtility += item.Quantity * item.UnitPrice;
+                }
+                if (!containsAll) continue;
+                utilitySum += comboUtility;
+                if (utilitySum >= minUtilityThreshold) break;
+            }
+            if (utilitySum >= minUtilityThreshold) frequent.Add(candidate);
+        }
+        return frequent;
+    }
+
+    private static IEnumerable<List<int>> GetCombinations(IReadOnlyList<int> items, int size)
+    {
+        return GetCombinationsRecursive(items, size, 0);
+    }
+
+    private static IEnumerable<List<int>> GetCombinationsRecursive(IReadOnlyList<int> items, int size, int start)
     {
         if (size == 0)
         {
@@ -371,12 +546,11 @@ public class AprioriRecommender
         }
     }
 
-    private static decimal CalculateDiscountByWeightedUtility(decimal weightedUtility)
+    private static decimal CalculateDiscountByOriginalPrice(decimal originalPrice)
     {
-        if (weightedUtility >= 2_000_000m) return 25m;
-        if (weightedUtility >= 1_000_000m) return 20m;
-        if (weightedUtility >= 700_000m) return 15m;
-        if (weightedUtility >= 500_000m) return 10m;
-        return 5m;
+        if (originalPrice >= 50_000_000m) return 25m;
+        if (originalPrice >= 10_000_000m) return 20m;
+        if (originalPrice >= 5_000_000m)  return 15m;
+        return 10m;
     }
 }

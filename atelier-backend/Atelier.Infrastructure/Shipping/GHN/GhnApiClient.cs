@@ -301,7 +301,8 @@ public class GhnApiClient
 
         var url = _options.BaseUrl.TrimEnd('/');
         _httpClient.BaseAddress = new Uri(url + "/");
-        _masterDataBase = "https://online-gateway.ghn.vn/shiip/public-api/";
+        var baseUri = new Uri(url);
+        _masterDataBase = $"{baseUri.Scheme}://{baseUri.Host}/shiip/public-api/";
     }
 
     public async Task<List<GhnProvince>> GetProvincesAsync(CancellationToken ct = default)

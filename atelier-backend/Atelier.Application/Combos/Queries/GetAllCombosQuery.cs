@@ -91,15 +91,15 @@ public class GetAllCombosQueryHandler
             DiscountValue = combo.DiscountValue,
             SuggestedDiscountValue = combo.SuggestedDiscountValue,
             OriginalTotalPrice = combo.Items.Sum(i => i.Product.ProductVariants.Any()
-                ? i.Product.ProductVariants.Min(v => v.Price) : 0m),
+                ? i.Product.ProductVariants.Average(v => v.Price) : 0m),
             ComboPrice = combo.DiscountType switch
             {
                 "Percentage" => Math.Round(combo.Items.Sum(i => i.Product.ProductVariants.Any()
-                    ? i.Product.ProductVariants.Min(v => v.Price) : 0m) * (1 - combo.DiscountValue / 100m), 0),
+                    ? i.Product.ProductVariants.Average(v => v.Price) : 0m) * (1 - combo.DiscountValue / 100m), 0),
                 "Fixed" => Math.Max(0, combo.Items.Sum(i => i.Product.ProductVariants.Any()
-                    ? i.Product.ProductVariants.Min(v => v.Price) : 0m) - combo.DiscountValue),
+                    ? i.Product.ProductVariants.Average(v => v.Price) : 0m) - combo.DiscountValue),
                 _ => combo.Items.Sum(i => i.Product.ProductVariants.Any()
-                    ? i.Product.ProductVariants.Min(v => v.Price) : 0m),
+                    ? i.Product.ProductVariants.Average(v => v.Price) : 0m),
             },
             MaxUses = combo.MaxUses,
             CurrentUses = combo.CurrentUses,

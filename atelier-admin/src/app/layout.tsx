@@ -42,15 +42,15 @@ export default function RootLayout({
         />
       </head>
       <body className="flex min-h-screen bg-background">
-        <AuthGuard>
         <ToastProvider>
+        <AuthGuard>
         <ConfirmProvider>
         <AppShell>
           {children}
         </AppShell>
         </ConfirmProvider>
-        </ToastProvider>
         </AuthGuard>
+        </ToastProvider>
       </body>
     </html>
   );

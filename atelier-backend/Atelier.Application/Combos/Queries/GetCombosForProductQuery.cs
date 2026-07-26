@@ -121,7 +121,7 @@ public class GetCombosForProductQueryHandler
     private static decimal CalculateOriginalTotal(Domain.Entities.ProductCombo combo)
     {
         return combo.Items.Sum(i => i.Product.ProductVariants.Any()
-            ? i.Product.ProductVariants.Min(v => v.Price)
+            ? i.Product.ProductVariants.Average(v => v.Price)
             : 0m);
     }
 
