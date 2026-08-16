@@ -128,6 +128,24 @@ export const auth = {
       storeUserProfile(res);
       return res;
     }),
+  googleLogin: (idToken: string) =>
+    request<LoginResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ idToken }),
+    }).then((res) => {
+      setToken(res.token);
+      storeUserProfile(res);
+      return res;
+    }),
+  facebookLogin: (accessToken: string) =>
+    request<LoginResponse>("/auth/facebook", {
+      method: "POST",
+      body: JSON.stringify({ accessToken }),
+    }).then((res) => {
+      setToken(res.token);
+      storeUserProfile(res);
+      return res;
+    }),
   logout: () => {
     removeToken();
     removeUserProfile();
@@ -136,6 +154,22 @@ export const auth = {
   getProfile: (): UserProfileStore | null => getUserProfile(),
   isLoggedIn: (): boolean => isAuthenticated(),
 };
+
+export async function finalizeCustomerLogin(res: LoginResponse, mergeCart: boolean): Promise<void> {
+  setToken(res.token);
+  storeUserProfile(res);
+  const sessionId = getSessionId();
+  if (mergeCart && sessionId) {
+    try {
+      await request<void>("/carts/merge", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${res.token}` },
+        body: JSON.stringify({ sessionId }),
+      });
+    } catch { }
+    clearSessionId();
+  }
+}
 
 export const products = {
   list: (params?: {

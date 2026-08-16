@@ -30,6 +30,7 @@ builder.Services.AddScoped<LocationSeeder>();
 builder.Services.Configure<Atelier.Application.Shipping.Services.GhnOptions>(builder.Configuration.GetSection("GHN"));
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<Atelier.Infrastructure.Shipping.GHN.GhnApiClient>();
+builder.Services.AddHttpClient("Facebook");
 builder.Services.AddSingleton<Atelier.Infrastructure.Shipping.GHN.GhnLocationCache>();
 builder.Services.AddScoped<Atelier.Infrastructure.Shipping.GHN.GhnFeeService>();
 builder.Services.AddScoped<Atelier.Application.Shipping.Services.IShippingFeeService>(sp => sp.GetRequiredService<Atelier.Infrastructure.Shipping.GHN.GhnFeeService>());

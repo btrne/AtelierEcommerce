@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "predev": "node scripts/generate-certs.mjs",
+    "dev": "next dev -p 3001 --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem --experimental-https-ca ./certificates/rootCA.pem",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "eslint"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "node-forge": "^1.4.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

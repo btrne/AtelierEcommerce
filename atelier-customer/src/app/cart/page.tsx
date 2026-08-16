@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { cart as cartApi, auth, combos as combosApi, products as productsApi } from "@/lib/api";
+import { cart as cartApi, auth, combos as combosApi, products as productsApi, wishlist as wishlistApi, isAuthenticated } from "@/lib/api";
 import type { CartDto } from "@/lib/types";
 import { formatCurrency } from "@/utils/format";
 import { useToast } from "@/components/Toast";
@@ -14,6 +14,7 @@ export default function CartPage() {
   const [cart, setCart] = useState<CartDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
+  const [favoritingIds, setFavoritingIds] = useState<Set<number>>(new Set());
 
   const loadCart = useCallback(async () => {
     try {
@@ -56,6 +57,18 @@ export default function CartPage() {
         setRemovingIds((prev) => { const next = new Set(prev); next.delete(itemId); return next; });
       }
     }, 400);
+  }
+
+  async function handleAddToWishlist(itemId: number, productId: number) {
+    setFavoritingIds((prev) => new Set(prev).add(itemId));
+    try {
+      await wishlistApi.add(productId);
+      toast.showToast("Đã thêm vào danh sách yêu thích", "success");
+    } catch (err: unknown) {
+      toast.showToast(err instanceof Error ? err.message : "Thêm vào yêu thích thất bại", "error");
+    } finally {
+      setFavoritingIds((prev) => { const next = new Set(prev); next.delete(itemId); return next; });
+    }
   }
 
   function recalcTotal(currentCart: CartDto, changedId: number, newQty: number): number {
@@ -172,6 +185,16 @@ export default function CartPage() {
                 </Link>
                 {item.variantInfo && (
                   <p className="font-body-md text-body-md text-on-surface-variant mt-1">{item.variantInfo}</p>
+                )}
+                {isAuthenticated() && (
+                  <button
+                    onClick={() => handleAddToWishlist(item.id, item.productId)}
+                    disabled={favoritingIds.has(item.id)}
+                    className="mt-3 inline-flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-base">favorite</span>
+                    {favoritingIds.has(item.id) ? "Đang thêm..." : "Thêm vào yêu thích"}
+                  </button>
                 )}
               </div>
 
