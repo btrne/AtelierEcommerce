@@ -1,26 +1,11 @@
 /* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata } from "next";
-import { Playfair_Display, Montserrat } from "next/font/google";
 import Footer from "@/components/Footer";
 import { ToastProvider } from "@/components/Toast";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
 import ChatBox from "@/components/ChatBox";
 import LayoutShell from "@/components/LayoutShell";
 import "./globals.css";
-
-const playfair = Playfair_Display({
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-playfair",
-  display: "swap",
-});
-
-const montserrat = Montserrat({
-  subsets: ["latin", "vietnamese"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-montserrat",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "ATELIER - Dấu Ấn Thủ Công Tinh Tế",
@@ -31,7 +16,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="vi" className={`${playfair.variable} ${montserrat.variable}`}>
+    <html lang="vi">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link
