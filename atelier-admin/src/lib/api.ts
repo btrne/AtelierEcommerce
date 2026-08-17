@@ -534,7 +534,10 @@ export const inventory = {
 };
 
 export const paymentMethods = {
-  admin: () => request<PaymentMethodDto[]>("/paymentmethods"),
+  admin: async () => {
+    const result = await request<PaginatedList<PaymentMethodDto>>("/paymentmethods?pageSize=100");
+    return result.items;
+  },
   create: (data: { name: string }) =>
     request<PaymentMethodDto>("/paymentmethods", {
       method: "POST",
@@ -550,7 +553,10 @@ export const paymentMethods = {
 };
 
 export const roles = {
-  admin: () => request<RoleDto[]>("/roles"),
+  admin: async () => {
+    const result = await request<PaginatedList<RoleDto>>("/roles?pageSize=100");
+    return result.items;
+  },
   create: (data: { code: string; name: string }) =>
     request<RoleDto>("/roles", { method: "POST", body: JSON.stringify(data) }),
   update: (id: number, data: { code?: string; name?: string; isActive?: boolean }) =>
