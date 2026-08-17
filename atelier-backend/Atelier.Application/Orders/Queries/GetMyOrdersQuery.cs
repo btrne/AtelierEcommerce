@@ -51,7 +51,7 @@ public class GetMyOrdersQueryHandler : IRequestHandler<GetMyOrdersQuery, Paginat
         var query = _context.Orders
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.ProductVariant)
+                .ThenInclude(oi => oi.ProductVariant!)
                     .ThenInclude(pv => pv.ProductVariantImages)
             .Include(o => o.Payments)
             .Where(o => o.UserId == request.UserId)

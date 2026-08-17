@@ -38,7 +38,7 @@ export default function RolesPage() {
     setLoading(true);
     rolesApi
       .admin()
-      .then((res: any) => setData(Array.isArray(res) ? res : res.items))
+      .then((res) => setData(res))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -52,7 +52,14 @@ export default function RolesPage() {
       .finally(() => setUsersLoading(false));
   };
 
-  useEffect(() => { fetchData(); fetchUsers(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+      fetchUsers();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -79,8 +86,8 @@ export default function RolesPage() {
       }
       setModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -92,8 +99,8 @@ export default function RolesPage() {
         await rolesApi.delete(id);
         showToast("Xóa vai trò thành công", "success");
         fetchData();
-      } catch (err: any) {
-        showToast(err.message || "Lỗi", "error");
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : "Lỗi", "error");
       }
     }
   };
@@ -141,8 +148,8 @@ export default function RolesPage() {
       showToast("Tạo tài khoản thành công", "success");
       setCreateUserModalOpen(false);
       fetchUsers();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setCreateUserLoading(false);
     }
@@ -169,8 +176,8 @@ export default function RolesPage() {
       showToast("Cập nhật vai trò người dùng thành công", "success");
       setUserModalOpen(false);
       fetchUsers();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSavingRoles(false);
     }

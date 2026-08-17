@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { cart as cartApi, orders as ordersApi, vouchers as vouchersApi, shipping as shippingApi, auth, profile as profileApi, locations as locationsApi, customRequestsApi, combos as combosApi, products as productsApi } from "@/lib/api";
+import Image from "next/image";
+import { cart as cartApi, orders as ordersApi, vouchers as vouchersApi, shipping as shippingApi, auth, profile as profileApi, locations as locationsApi, customRequestsApi, combos as combosApi, products as productsApi, getSessionId } from "@/lib/api";
 import { track } from "@/lib/tracking";
 import type { CartDto, AddressDto, AddressRequest, ActiveVoucherDto, CheckoutItem, ShippingFeeOption, CustomRequestDto } from "@/lib/types";
 import { formatCurrency } from "@/utils/format";
@@ -20,6 +21,7 @@ function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
+  const initialLoadStartedRef = useRef(false);
   const [cart, setCart] = useState<CartDto | null>(null);
   const [customRequest, setCustomRequest] = useState<CustomRequestDto | null>(null);
   const [addresses, setAddresses] = useState<AddressDto[]>([]);
@@ -27,7 +29,6 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [userId, setUserId] = useState<number | undefined>();
   const customRequestId = searchParams.get("customRequestId");
 
   const [recipientName, setRecipientName] = useState("");
@@ -120,7 +121,11 @@ function CheckoutContent() {
   }, [selectedProvinceName, selectedDistrictName, selectedWardName, cart]);
 
   useEffect(() => {
-    calcShippingFee();
+    const timeoutId = window.setTimeout(() => {
+      void calcShippingFee();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [calcShippingFee]);
 
   async function loadDistricts(provinceCode: string | null) {
@@ -142,15 +147,6 @@ function CheckoutContent() {
     } catch { setWards([]); }
     setSelectedWard(null);
   }
-
-  useEffect(() => {
-    if (!auth.isLoggedIn()) { router.push("/login"); return; }
-
-    const profile = auth.getProfile();
-    if (profile) setUserId(profile.id);
-
-    loadInitialData();
-  }, []);
 
   async function loadInitialData() {
     setLoading(true);
@@ -214,6 +210,20 @@ function CheckoutContent() {
     setShowAddressModal(false);
   }
 
+  useEffect(() => {
+    if (initialLoadStartedRef.current) return;
+    initialLoadStartedRef.current = true;
+
+    if (!auth.isLoggedIn()) { router.push("/login"); return; }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadInitialData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
   async function handleAddAddress(e: React.FormEvent) {
     e.preventDefault();
     if (!newAddress.contactName.trim() || !newAddress.phone.trim() || !newAddress.provinceName.trim() || !newAddress.districtName.trim() || !newAddress.wardName.trim() || !newAddress.detailAddress.trim()) {
@@ -264,7 +274,7 @@ function CheckoutContent() {
     if (!code) return;
     setApplyingVoucher(true);
     try {
-      const result = await vouchersApi.apply({ code, orderTotal: subtotal, userId });
+      const result = await vouchersApi.apply({ code, orderTotal: subtotal });
       if (result.valid && result.voucherId && result.discount != null) {
         setAppliedVoucher({
           code: result.code ?? code,
@@ -312,7 +322,7 @@ function CheckoutContent() {
 
       const selectedCarrier = shippingOptions[selectedOption]?.carrierCode;
       const result = await ordersApi.create({
-        userId,
+        sessionId: auth.isLoggedIn() ? undefined : getSessionId() ?? undefined,
         recipientName,
         recipientPhone,
         shippingAddress: shippingAddressDetail,
@@ -333,9 +343,7 @@ function CheckoutContent() {
       track("purchase", "Order", result.orderId);
 
       if (paymentMethodId === 1) {
-        if (!customRequestId) {
-          await cartApi.clear();
-        }
+        window.dispatchEvent(new CustomEvent("cart-updated"));
         toast.showToast("Đặt hàng thành công!");
         router.push("/account?tab=orders");
       } else {
@@ -567,7 +575,7 @@ function CheckoutContent() {
                 <div className="flex gap-4">
                   {customRequest.imageUrl && (
                     <div className="w-24 h-30 bg-surface flex-shrink-0 overflow-hidden">
-                      <img src={customRequest.imageUrl} alt="" className="w-full h-full object-cover" />
+                      <Image src={customRequest.imageUrl} alt="" width={96} height={120} unoptimized className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="flex flex-col justify-between py-1 min-w-0">
@@ -584,7 +592,7 @@ function CheckoutContent() {
                 cart.items.map((item) => (
                   <div key={item.id} className="flex gap-4">
                     <div className="w-24 h-30 bg-surface flex-shrink-0 overflow-hidden">
-                      <img src={item.productImage || "/placeholder.svg"} alt="" className="w-full h-full object-cover" />
+                      <Image src={item.productImage || "/placeholder.svg"} alt="" width={96} height={120} unoptimized className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col justify-between py-1 min-w-0">
                       <div>
@@ -712,7 +720,7 @@ function CheckoutContent() {
                               try {
                                 const detail = await productsApi.detail(pid);
                                 if (detail && detail.variants && detail.variants.length > 0) {
-                                  const dv = detail.variants.find((v: any) => v.isDefault) || detail.variants[0];
+                                  const dv = detail.variants.find((v) => v.isDefault) || detail.variants[0];
                                   await cartApi.add({ productVariantId: dv.id, quantity: 1 });
                                 }
                               } catch {}

@@ -22,9 +22,13 @@ export default function RegisterPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
-    const sid = getSessionId();
-    setHasSessionId(!!sid);
-    setMergeCart(!!sid);
+    const timeoutId = window.setTimeout(() => {
+      const sid = getSessionId();
+      setHasSessionId(!!sid);
+      setMergeCart(!!sid);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

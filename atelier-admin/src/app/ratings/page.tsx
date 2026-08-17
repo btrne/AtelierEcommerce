@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ratings as ratingsApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -14,7 +14,7 @@ export default function RatingsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     ratingsApi
       .admin({ page, pageSize: 15 })
@@ -24,9 +24,15 @@ export default function RatingsPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetchData(); }, [page]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData]);
 
   const renderStars = (stars: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -42,8 +48,8 @@ export default function RatingsPage() {
         await ratingsApi.delete(id);
         showToast("Xóa đánh giá thành công", "success");
         fetchData();
-      } catch (err: any) {
-        showToast(err.message || "Lỗi", "error");
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : "Lỗi", "error");
       }
     }
   };

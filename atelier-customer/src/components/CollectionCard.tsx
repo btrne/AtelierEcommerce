@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { CollectionDto } from "@/lib/types";
 
 interface CollectionCardProps {
@@ -14,10 +15,13 @@ export default function CollectionCard({ collection }: CollectionCardProps) {
       className="group relative overflow-hidden aspect-[4/5] bg-surface-container block"
     >
       {collection.bannerImageUrl && (
-        <img
+        <Image
           alt={collection.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           src={collection.bannerImageUrl}
+          width={400}
+          height={500}
+          unoptimized
         />
       )}
       {!collection.bannerImageUrl && (

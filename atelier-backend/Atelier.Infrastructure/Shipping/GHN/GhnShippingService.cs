@@ -31,7 +31,7 @@ public class GhnShippingService : IShippingService
         var order = await _context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.ProductVariant)
-                    .ThenInclude(v => v.Product)
+                    .ThenInclude(v => v!.Product)
             .FirstOrDefaultAsync(o => o.Id == orderId, ct);
 
         if (order == null)

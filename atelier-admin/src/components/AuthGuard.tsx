@@ -27,18 +27,27 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    checkAuth();
+    const timeoutId = window.setTimeout(() => {
+      checkAuth();
+    }, 0);
 
     const handleExpired = () => {
       setAuthenticated(false);
       setLoginReason("expired");
     };
     window.addEventListener("auth:expired", handleExpired);
-    return () => window.removeEventListener("auth:expired", handleExpired);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("auth:expired", handleExpired);
+    };
   }, [checkAuth]);
 
   useEffect(() => {
-    checkAuth();
+    const timeoutId = window.setTimeout(() => {
+      checkAuth();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [pathname, checkAuth]);
 
   if (authenticated === null) {

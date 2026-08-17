@@ -31,8 +31,12 @@ export default function Header2({ fixed = true }: { fixed?: boolean }) {
   }, []);
 
   useEffect(() => {
-    setIsLoggedIn(auth.isLoggedIn());
-    fetchCartCount();
+    const timeoutId = window.setTimeout(() => {
+      setIsLoggedIn(auth.isLoggedIn());
+      fetchCartCount();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [pathname, fetchCartCount]);
 
   useEffect(() => {

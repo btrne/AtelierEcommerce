@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { conversations } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -46,6 +47,20 @@ function SupportContent() {
     }
   }, [showToast]);
 
+  const selectConversation = useCallback(async (conv: ConversationDto) => {
+    setSelectedConv(conv);
+    setReplyText("");
+    setMessagesLoading(true);
+    try {
+      const msgs = await conversations.messages(conv.id);
+      setMessages(Array.isArray(msgs) ? msgs : []);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi tải tin nhắn", "error");
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [showToast]);
+
   const loadFirstPage = useCallback(() => {
     setSelectedConv(null);
     setMessages([]);
@@ -53,8 +68,12 @@ function SupportContent() {
   }, [filter, loadData, search]);
 
   useEffect(() => {
-    loadFirstPage();
-  }, [filter]);
+    const timeoutId = window.setTimeout(() => {
+      loadFirstPage();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadFirstPage]);
 
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -62,7 +81,7 @@ function SupportContent() {
       loadData(filter, 1, search);
     }, 300);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [search]);
+  }, [filter, loadData, search]);
 
   useEffect(() => {
     if (autoOpened.current) return;
@@ -71,27 +90,17 @@ function SupportContent() {
     const conv = data.find((c) => c.id === Number(convId));
     if (conv) {
       autoOpened.current = true;
-      selectConversation(conv);
+      const timeoutId = window.setTimeout(() => {
+        selectConversation(conv);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
-  }, [data, searchParams]);
+  }, [data, searchParams, selectConversation]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const selectConversation = async (conv: ConversationDto) => {
-    setSelectedConv(conv);
-    setReplyText("");
-    setMessagesLoading(true);
-    try {
-      const msgs = await conversations.messages(conv.id);
-      setMessages(Array.isArray(msgs) ? msgs : []);
-    } catch (err: any) {
-      showToast(err.message || "Lỗi tải tin nhắn", "error");
-    } finally {
-      setMessagesLoading(false);
-    }
-  };
 
   const handleSend = async () => {
     if (!selectedConv || !replyText.trim()) return;
@@ -100,8 +109,8 @@ function SupportContent() {
       const msg = await conversations.sendMessage(selectedConv.id, replyText.trim());
       setMessages((prev) => [...prev, msg]);
       setReplyText("");
-    } catch (err: any) {
-      showToast(err.message || "Lỗi gửi tin nhắn", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi gửi tin nhắn", "error");
     } finally {
       setSending(false);
     }
@@ -251,7 +260,7 @@ function SupportContent() {
                         }`}>
                           {msg.messageText && <p className="font-body-md text-body-md">{msg.messageText}</p>}
                           {msg.imageUrls?.map((url, i) => (
-                            <img key={i} src={url} alt="" className="mt-2 max-w-full max-h-48 object-cover" />
+                            <Image key={i} src={url} alt="" width={320} height={192} unoptimized className="mt-2 max-w-full max-h-48 object-cover" />
                           ))}
                           {msg.sender === "AI" && <ProductSuggestions suggestions={msg.productSuggestions ?? []} />}
                           <p className={`text-[11px] mt-1 ${

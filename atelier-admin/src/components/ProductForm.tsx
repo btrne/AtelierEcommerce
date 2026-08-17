@@ -71,15 +71,15 @@ export default function ProductForm({ initialData, onSubmit, loading, submitLabe
 
   const autoSlug = (name: string) => name.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-  useEffect(() => {
-    if (!slugManuallyEdited && form.name) {
-      setForm((prev) => ({ ...prev, slug: autoSlug(prev.name) }));
-    }
-  }, [form.name, slugManuallyEdited]);
-
   const handleChange = (field: keyof ProductFormData, value: unknown) => {
     if (field === "slug") setSlugManuallyEdited(true);
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "name" && !slugManuallyEdited && typeof value === "string") {
+        next.slug = autoSlug(value);
+      }
+      return next;
+    });
   };
 
   const toggleCollection = (id: number) => {

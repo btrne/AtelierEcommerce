@@ -18,6 +18,15 @@ namespace Atelier.Api.Controllers.Sales
             _mediator = mediator;
         }
 
+        private int? GetUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdClaim, out var userId) ? userId : null;
+        }
+
+        private bool CanAccessAllOrders() =>
+            User.IsInRole("Admin") || User.IsInRole("Staff");
+
         [Authorize]
         [HttpGet("my-orders")]
         public async Task<IActionResult> GetMyOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? status = null)
@@ -36,6 +45,7 @@ namespace Atelier.Api.Controllers.Sales
         {
             try
             {
+                command.UserId = GetUserId();
                 var result = await _mediator.Send(command);
                 return Ok(new { result.OrderId, result.PaymentUrl, Message = "Đặt hàng thành công!" });
             }
@@ -47,18 +57,27 @@ namespace Atelier.Api.Controllers.Sales
             }
         }
 
+        [Authorize]
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetUserOrders(int userId)
         {
+            if (!CanAccessAllOrders() && GetUserId() != userId)
+                return Forbid();
+
             var query = new GetUserOrdersQuery { UserId = userId };
             var result = await _mediator.Send(query);
             return Ok(result);
         }
 
+        [Authorize]
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id, [FromQuery] int? userId = null)
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _mediator.Send(new GetOrderByIdQuery { Id = id, UserId = userId });
+            var result = await _mediator.Send(new GetOrderByIdQuery
+            {
+                Id = id,
+                UserId = CanAccessAllOrders() ? null : GetUserId(),
+            });
             if (result == null)
                 return NotFound(new { message = "Không tìm thấy đơn hàng." });
             return Ok(result);
@@ -70,8 +89,21 @@ namespace Atelier.Api.Controllers.Sales
         {
             try
             {
-                await _mediator.Send(new CancelOrderCommand { Id = id });
+                var userId = GetUserId();
+                if (userId == null)
+                    return Unauthorized();
+
+                await _mediator.Send(new CancelOrderCommand
+                {
+                    Id = id,
+                    UserId = userId.Value,
+                    IsAdmin = CanAccessAllOrders(),
+                });
                 return Ok(new { message = "Đã hủy đơn hàng thành công." });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
             }
             catch (Exception ex)
             {

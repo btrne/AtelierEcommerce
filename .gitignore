@@ -6,6 +6,11 @@
 # dotenv files
 .env
 
+# Generated deployment artifacts
+deploy/sql/*.sql
+deploy/publish/
+deploy/*.local.json
+
 # User-specific files
 *.rsuser
 *.suo

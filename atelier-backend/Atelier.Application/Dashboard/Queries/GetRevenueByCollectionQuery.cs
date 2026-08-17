@@ -54,12 +54,13 @@ public class GetRevenueByCollectionQueryHandler : IRequestHandler<GetRevenueByCo
         var items = await _context.Orders
             .Where(o => o.CreatedAt >= dateFrom && o.CreatedAt < dateTo && o.OrderStatus == "Completed")
             .SelectMany(o => o.OrderItems)
+            .Where(oi => oi.ProductVariant != null && oi.ProductVariant.Product != null)
             .Select(oi => new
             {
                 oi.OrderId,
                 Revenue = oi.Quantity * oi.UnitPrice,
-                oi.ProductVariant.ProductId,
-                Collections = oi.ProductVariant.Product.ProductCollections
+                oi.ProductVariant!.ProductId,
+                Collections = oi.ProductVariant.Product!.ProductCollections
                     .Select(pc => new { pc.CollectionId, pc.Collection.Name })
             })
             .ToListAsync(cancellationToken);

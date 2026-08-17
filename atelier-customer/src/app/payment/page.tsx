@@ -1,44 +1,47 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cart } from "@/lib/api";
 
 function PaymentResultContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [status, setStatus] = useState<"processing" | "success" | "failed">("processing");
   const [message, setMessage] = useState("");
   const [transactionNo, setTransactionNo] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
-    const statusParam = searchParams.get("status") || searchParams.get("result");
-    const id = searchParams.get("orderId");
-    const txn = searchParams.get("transactionNo");
+    const timeoutId = window.setTimeout(() => {
+      const statusParam = searchParams.get("status") || searchParams.get("result");
+      const id = searchParams.get("orderId");
+      const txn = searchParams.get("transactionNo");
 
-    setOrderId(id);
-    setTransactionNo(txn);
+      setOrderId(id);
+      setTransactionNo(txn);
 
-    if (statusParam === "success") {
-      setStatus("success");
-      setMessage("Thanh toán thành công!");
-      cart.clear().catch(() => {});
-    } else if (statusParam === "fail" || statusParam === "failed") {
-      setStatus("failed");
-      setMessage("Thanh toán thất bại");
-    } else if (statusParam === "cancelled") {
-      setStatus("failed");
-      setMessage("Bạn đã hủy thanh toán");
-    } else if (id) {
-      setStatus("success");
-      setMessage("Đơn hàng đã được đặt thành công!");
-      cart.clear().catch(() => {});
-    } else {
-      setStatus("failed");
-      setMessage("Có lỗi xảy ra");
-    }
+      if (statusParam === "success") {
+        setStatus("success");
+        setMessage("Thanh toán thành công!");
+        cart.clear().catch(() => {});
+      } else if (statusParam === "fail" || statusParam === "failed") {
+        setStatus("failed");
+        setMessage("Thanh toán thất bại");
+      } else if (statusParam === "cancelled") {
+        setStatus("failed");
+        setMessage("Bạn đã hủy thanh toán");
+      } else if (id) {
+        setStatus("success");
+        setMessage("Đơn hàng đã được đặt thành công!");
+        cart.clear().catch(() => {});
+      } else {
+        setStatus("failed");
+        setMessage("Có lỗi xảy ra");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [searchParams]);
 
   if (status === "processing") {

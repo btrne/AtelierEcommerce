@@ -18,10 +18,10 @@ public class VnPayService : IVnPayService
     public VnPayService(IConfiguration configuration)
     {
         var section = configuration.GetSection("VnPay");
-        _baseUrl = section["BaseUrl"]!;
-        _tmnCode = section["TmnCode"]!;
-        _hashSecret = section["HashSecret"]!;
-        _defaultReturnUrl = section["ReturnUrl"]!;
+        _baseUrl = RequireSetting(section, "BaseUrl");
+        _tmnCode = RequireSetting(section, "TmnCode");
+        _hashSecret = RequireSetting(section, "HashSecret", minLength: 16);
+        _defaultReturnUrl = RequireSetting(section, "ReturnUrl");
         _timeZone = TimeZoneInfo.FindSystemTimeZoneById(
             configuration["TimeZone:Id"] ?? "SE Asia Standard Time");
     }
@@ -78,7 +78,16 @@ public class VnPayService : IVnPayService
         var signData = BuildHashData(sorted);
         var computed = HmacSha512(_hashSecret, signData);
 
-        return computed.Equals(secureHash, StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            return CryptographicOperations.FixedTimeEquals(
+                Convert.FromHexString(computed),
+                Convert.FromHexString(secureHash));
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -115,5 +124,18 @@ public class VnPayService : IVnPayService
         using var hmac = new HMACSHA512(encoding.GetBytes(key));
         var hash = hmac.ComputeHash(encoding.GetBytes(data));
         return BitConverter.ToString(hash).Replace("-", "").ToLower();
+    }
+
+    private static string RequireSetting(IConfigurationSection section, string key, int minLength = 1)
+    {
+        var value = section[key]?.Trim();
+        if (string.IsNullOrWhiteSpace(value) ||
+            value.Length < minLength ||
+            value.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"VnPay:{key} is not configured securely.");
+        }
+
+        return value;
     }
 }

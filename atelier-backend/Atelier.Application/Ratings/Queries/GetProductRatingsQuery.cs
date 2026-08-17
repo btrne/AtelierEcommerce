@@ -22,10 +22,12 @@ public class GetProductRatingsQueryHandler : IRequestHandler<GetProductRatingsQu
     {
         var query = _context.Ratings
             .Include(r => r.User)
-            .Include(r => r.OrderItem)
-                .ThenInclude(oi => oi.ProductVariant)
+            .Include(r => r.OrderItem!)
+                .ThenInclude(oi => oi.ProductVariant!)
                     .ThenInclude(pv => pv.Product)
-            .Where(r => r.OrderItem.ProductVariant.ProductId == request.ProductId);
+            .Where(r => r.OrderItem != null &&
+                        r.OrderItem.ProductVariant != null &&
+                        r.OrderItem.ProductVariant.ProductId == request.ProductId);
 
         var ratings = await query
             .OrderByDescending(r => r.CreatedAt)
@@ -33,7 +35,7 @@ public class GetProductRatingsQueryHandler : IRequestHandler<GetProductRatingsQu
             {
                 id = r.Id,
                 userId = r.UserId,
-                userName = r.User.FullName ?? r.User.Email,
+                userName = r.User != null ? r.User.FullName ?? r.User.Email : "",
                 stars = r.Stars,
                 comment = r.Comment,
                 createdAt = r.CreatedAt,

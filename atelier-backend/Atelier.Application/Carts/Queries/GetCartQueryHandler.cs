@@ -4,7 +4,7 @@ using Atelier.Application.Common.Interfaces;
 
 namespace Atelier.Application.Carts.Queries
 {
-    public class GetCartQueryHandler : IRequestHandler<GetCartQuery, object>
+    public class GetCartQueryHandler : IRequestHandler<GetCartQuery, object?>
     {
         private readonly IApplicationDbContext _context;
 

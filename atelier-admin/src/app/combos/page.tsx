@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import { combos as combosApi, products as productsApi } from "@/lib/api";
 import type { ProductComboAdminDto, ProductAdminDto, PaginatedList, CreateComboRequest } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -34,7 +35,13 @@ export default function CombosPage() {
     setLoading(false);
   }, [page, filter, search]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadData]);
 
   useEffect(() => {
     productsApi.admin({ pageSize: 200 }).then((res) => {
@@ -172,7 +179,7 @@ export default function CombosPage() {
                   <div className="flex flex-wrap gap-1 mt-2">
                     {combo.products.map((p) => (
                       <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-surface-container-high rounded-full text-[10px]">
-                        {p.thumbnailUrl && <img src={p.thumbnailUrl} alt="" className="w-4 h-4 rounded-full object-cover" />}
+                        {p.thumbnailUrl && <Image src={p.thumbnailUrl} alt="" width={16} height={16} unoptimized className="w-4 h-4 rounded-full object-cover" />}
                         {p.name}
                       </span>
                     ))}
@@ -393,7 +400,7 @@ function ComboModal({
                 if (!p) return null;
                 return (
                   <span key={id} className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-container text-on-primary-container rounded-full font-body-sm text-body-sm">
-                    {p.thumbnailUrl && <img src={p.thumbnailUrl} alt="" className="w-5 h-5 rounded-full object-cover" />}
+                    {p.thumbnailUrl && <Image src={p.thumbnailUrl} alt="" width={20} height={20} unoptimized className="w-5 h-5 rounded-full object-cover" />}
                     {p.name}
                     <button onClick={() => toggleProduct(id)} className="ml-1 hover:opacity-60">&times;</button>
                   </span>
@@ -414,7 +421,7 @@ function ComboModal({
                   onClick={() => toggleProduct(p.id)}
                   className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-surface-container-high transition text-left"
                 >
-                  {p.thumbnailUrl && <img src={p.thumbnailUrl} alt="" className="w-8 h-8 rounded object-cover" />}
+                  {p.thumbnailUrl && <Image src={p.thumbnailUrl} alt="" width={32} height={32} unoptimized className="w-8 h-8 rounded object-cover" />}
                   <span className="font-body-sm text-body-sm flex-1">{p.name}</span>
                   <span className="font-body-sm text-body-sm text-on-surface-variant">{formatCurrency(p.minPrice)}</span>
                 </button>

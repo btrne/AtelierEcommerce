@@ -25,9 +25,12 @@ public class CustomRequestsController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCustomRequestCommand command)
     {
+        command.UserId = GetUserId();
+
         try
         {
             await _mediator.Send(command);

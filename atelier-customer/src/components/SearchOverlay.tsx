@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { products as productsApi, categories as categoriesApi, collections as collectionsApi } from "@/lib/api";
 import { track } from "@/lib/tracking";
 import type { ProductCustomerDto, CategoryDto, CollectionDto } from "@/lib/types";
@@ -31,11 +32,18 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setQuery("");
-    setProducts([]);
-    setCategories([]);
-    setCollections([]);
-    setTimeout(() => inputRef.current?.focus(), 100);
+    const resetTimeoutId = window.setTimeout(() => {
+      setQuery("");
+      setProducts([]);
+      setCategories([]);
+      setCollections([]);
+    }, 0);
+    const focusTimeoutId = window.setTimeout(() => inputRef.current?.focus(), 100);
+
+    return () => {
+      window.clearTimeout(resetTimeoutId);
+      window.clearTimeout(focusTimeoutId);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -49,7 +57,15 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   useEffect(() => {
     const q = query.trim();
-    if (!q) { setProducts([]); setCategories([]); setCollections([]); return; }
+    if (!q) {
+      const timeoutId = window.setTimeout(() => {
+        setProducts([]);
+        setCategories([]);
+        setCollections([]);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
+    }
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
@@ -101,7 +117,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       {products.slice(0, 5).map((p) => (
                         <Link key={p.id} href={`/products/${p.slug}`} onClick={() => { track("search", null, null, { query: query.trim() }); track("search_result_click", "Product", p.id, { query: query.trim() }); onClose(); }} className="flex items-center gap-3 group">
                           <div className="w-12 h-12 bg-surface-container-low overflow-hidden shrink-0">
-                            {p.thumbnailUrl && <img src={p.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+                            {p.thumbnailUrl && <Image src={p.thumbnailUrl} alt="" width={48} height={48} unoptimized className="w-full h-full object-cover" />}
                           </div>
                           <div className="min-w-0">
                             <p className="font-body-md text-sm truncate group-hover:text-primary transition-colors">{p.name}</p>
@@ -140,7 +156,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                       {collections.map((c) => (
                         <Link key={c.id} href={`/collections/${c.slug}`} onClick={onClose} className="flex items-center gap-3 group">
                           <div className="w-12 h-12 bg-surface-container-low overflow-hidden shrink-0">
-                            {c.bannerImageUrl && <img src={c.bannerImageUrl} alt="" className="w-full h-full object-cover" />}
+                            {c.bannerImageUrl && <Image src={c.bannerImageUrl} alt="" width={48} height={48} unoptimized className="w-full h-full object-cover" />}
                           </div>
                           <div className="min-w-0">
                             <p className="font-body-md text-sm truncate group-hover:text-primary transition-colors">{c.name}</p>

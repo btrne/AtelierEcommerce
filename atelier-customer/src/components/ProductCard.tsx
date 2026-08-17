@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { ProductCustomerDto } from "@/lib/types";
 import { formatCurrency } from "@/utils/format";
 
@@ -13,11 +14,13 @@ export default function ProductCard({ product }: Props) {
     <Link href={`/products/${product.slug}`} className="product-card group cursor-pointer">
       <div className="relative aspect-[4/5] w-full bg-surface-container overflow-hidden mb-4">
         {product.thumbnailUrl ? (
-          <img
+          <Image
             src={product.thumbnailUrl}
             alt={product.name}
+            width={400}
+            height={500}
+            unoptimized
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            loading="lazy"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

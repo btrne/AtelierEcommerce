@@ -12,6 +12,33 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var configuredCorsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+var frontendBaseUrl = builder.Configuration["Frontend:BaseUrl"];
+var allowedCorsOrigins = configuredCorsOrigins
+    .Concat(string.IsNullOrWhiteSpace(frontendBaseUrl) ? Array.Empty<string>() : new[] { frontendBaseUrl })
+    .Concat(builder.Environment.IsDevelopment()
+        ? new[]
+        {
+            "http://localhost:3000",
+            "https://localhost:3000",
+            "http://localhost:3001",
+            "https://localhost:3001",
+            "http://127.0.0.1:3000",
+            "https://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "https://127.0.0.1:3001",
+        }
+        : Array.Empty<string>())
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(NormalizeOrigin)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
+if (allowedCorsOrigins.Length == 0)
+    throw new InvalidOperationException("Configure at least one Cors:AllowedOrigins value.");
+
 // 1. Cấu hình Database & Giao diện (DI)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -72,7 +99,9 @@ builder.Services.AddSingleton<IDateTime>(_ => new DateTimeService(timeZoneId));
 
 // 4. JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"]!;
+var secretKey = RequireSetting(builder.Configuration, "JwtSettings:SecretKey", minLength: 32);
+var jwtIssuer = RequireSetting(builder.Configuration, "JwtSettings:Issuer");
+var jwtAudience = RequireSetting(builder.Configuration, "JwtSettings:Audience");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -87,9 +116,10 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.FromMinutes(1),
     };
     options.Events = new JwtBearerEvents
     {
@@ -99,7 +129,8 @@ builder.Services.AddAuthentication(options =>
                 return Task.CompletedTask;
 
             var accessToken = context.Request.Query["access_token"];
-            if (!string.IsNullOrEmpty(accessToken))
+            if (!string.IsNullOrEmpty(accessToken) &&
+                context.HttpContext.Request.Path.StartsWithSegments("/api/admin/notifications/stream"))
             {
                 context.Token = accessToken;
             }
@@ -125,8 +156,8 @@ builder.Services.AddSwaggerGen();
 // 7. CORS cho tất cả Frontend
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy.SetIsOriginAllowed(_ => true)
+    options.AddPolicy("FrontendOnly",
+        policy => policy.WithOrigins(allowedCorsOrigins)
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials());
@@ -134,7 +165,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseCors("AllowAll");
+app.UseCors("FrontendOnly");
 
 // 8. Bật giao diện web Swagger khi chạy Dev
 if (app.Environment.IsDevelopment())
@@ -156,7 +187,38 @@ using (var scope = app.Services.CreateScope())
     await seeder.SeedAsync();
 }
 
-// 11. Controllers
+// 11. Health check for demo/deploy warm-up
+app.MapGet("/health", async (ApplicationDbContext db, CancellationToken cancellationToken) =>
+{
+    var databaseReachable = await db.Database.CanConnectAsync(cancellationToken);
+    return Results.Ok(new
+    {
+        status = databaseReachable ? "Healthy" : "Degraded",
+        database = databaseReachable ? "Reachable" : "Unreachable",
+        environment = app.Environment.EnvironmentName,
+        utc = DateTimeOffset.UtcNow,
+    });
+}).AllowAnonymous();
+
+// 12. Controllers
 app.MapControllers();
 
 app.Run();
+
+static string NormalizeOrigin(string origin)
+{
+    return origin.Trim().TrimEnd('/');
+}
+
+static string RequireSetting(IConfiguration configuration, string key, int minLength = 1)
+{
+    var value = configuration[key]?.Trim();
+    if (string.IsNullOrWhiteSpace(value) ||
+        value.Length < minLength ||
+        value.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException($"{key} is not configured securely.");
+    }
+
+    return value;
+}

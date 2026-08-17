@@ -24,6 +24,10 @@ public class TrackingController : ControllerBase
             if (int.TryParse(userIdClaim, out var userId))
                 command.UserId = userId;
         }
+        else
+        {
+            command.UserId = null;
+        }
 
         await _mediator.Send(command);
         return Ok();

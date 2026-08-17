@@ -46,14 +46,21 @@ public class GetRevenueByCategoryQueryHandler : IRequestHandler<GetRevenueByCate
         var revenueByCategory = await _context.Orders
             .Where(o => o.CreatedAt >= dateFrom && o.CreatedAt < dateTo && o.OrderStatus == "Completed")
             .SelectMany(o => o.OrderItems)
-            .GroupBy(oi => new { oi.ProductVariant.Product.CategoryId, oi.ProductVariant.Product.Category.Name })
+            .Where(oi => oi.ProductVariant != null && oi.ProductVariant.Product != null)
+            .GroupBy(oi => new
+            {
+                oi.ProductVariant!.Product!.CategoryId,
+                CategoryName = oi.ProductVariant.Product.Category != null
+                    ? oi.ProductVariant.Product.Category.Name
+                    : "ChÆ°a phÃ¢n loáº¡i",
+            })
             .Select(g => new CategoryRevenueDto
             {
                 CategoryId = g.Key.CategoryId,
-                CategoryName = g.Key.Name,
+                CategoryName = g.Key.CategoryName ?? "ChÆ°a phÃ¢n loáº¡i",
                 TotalRevenue = g.Sum(oi => oi.Quantity * oi.UnitPrice),
                 OrderCount = g.Select(oi => oi.OrderId).Distinct().Count(),
-                ProductCount = g.Select(oi => oi.ProductVariant.ProductId).Distinct().Count(),
+                ProductCount = g.Select(oi => oi.ProductVariant!.ProductId).Distinct().Count(),
             })
             .OrderByDescending(c => c.TotalRevenue)
             .ToListAsync(cancellationToken);

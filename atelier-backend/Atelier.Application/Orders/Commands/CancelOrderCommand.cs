@@ -8,6 +8,8 @@ namespace Atelier.Application.Orders.Commands;
 public class CancelOrderCommand : IRequest<bool>
 {
     public int Id { get; set; }
+    public int UserId { get; set; }
+    public bool IsAdmin { get; set; }
 }
 
 public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, bool>
@@ -27,6 +29,9 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, boo
 
         if (order == null)
             throw new Exception($"Không tìm thấy đơn hàng với ID = {request.Id}");
+
+        if (!request.IsAdmin && order.UserId != request.UserId)
+            throw new UnauthorizedAccessException("You do not have permission to cancel this order.");
 
         if (order.OrderStatus == "Completed")
             throw new Exception("Không thể hủy đơn hàng đã hoàn thành.");

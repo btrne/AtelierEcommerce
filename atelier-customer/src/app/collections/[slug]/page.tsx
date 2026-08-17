@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { collections as collectionsApi, products as productsApi, recommendations as recommendationsApi } from "@/lib/api";
 import type { CollectionDto, ProductCustomerDto, CollectionRecommendationDto } from "@/lib/types";
 import CollectionCard from "@/components/CollectionCard";
@@ -86,10 +87,14 @@ export default function CollectionDetailPage() {
       {/* Collection Hero */}
       <section className="relative h-[60vh] min-h-[400px] overflow-hidden">
         {collection.bannerImageUrl ? (
-          <img
+          <Image
             className="w-full h-full object-cover"
             src={collection.bannerImageUrl}
             alt={collection.name}
+            width={1920}
+            height={720}
+            priority
+            unoptimized
           />
         ) : (
           <div className="w-full h-full bg-surface-container flex items-center justify-center">
@@ -122,10 +127,13 @@ export default function CollectionDetailPage() {
               >
                 <div className="relative aspect-[4/5] overflow-hidden bg-surface-container mb-4">
                   {product.thumbnailUrl ? (
-                    <img
+                    <Image
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                       src={product.thumbnailUrl}
                       alt={product.name}
+                      width={400}
+                      height={500}
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">

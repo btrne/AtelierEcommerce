@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import Image from "next/image";
 import { customRequests, conversations } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import Modal from "@/components/Modal";
@@ -96,8 +97,8 @@ function CreateRequestModal({
       showToast("Tạo yêu cầu chế tác thành công", "success");
       onCreated();
       onClose();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -148,7 +149,6 @@ function CreateRequestModal({
 }
 
 function ChatPanel({
-  convId,
   convName,
   messages,
   loading,
@@ -161,7 +161,6 @@ function ChatPanel({
   msgsEndRef,
   children,
 }: {
-  convId: number;
   convName: string;
   messages: MessageDto[];
   loading: boolean;
@@ -207,7 +206,7 @@ function ChatPanel({
                   }`}>
                     {msg.messageText && <p className="font-body-md text-body-md">{msg.messageText}</p>}
                     {msg.imageUrls?.map((url, i) => (
-                      <img key={i} src={url} alt="" className="mt-2 max-w-full max-h-48 object-cover" />
+                      <Image key={i} src={url} alt="" width={320} height={192} unoptimized className="mt-2 max-w-full max-h-48 object-cover" />
                     ))}
                     {msg.sender === "AI" && <ProductSuggestions suggestions={msg.productSuggestions || []} />}
                     <p className={`text-[11px] mt-1 ${
@@ -300,7 +299,13 @@ function ConversationsTab() {
     loadData(1, search);
   }, [loadData, search]);
 
-  useEffect(() => { loadFirstPage(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadFirstPage();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadFirstPage]);
 
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -308,7 +313,7 @@ function ConversationsTab() {
       loadData(1, search);
     }, 300);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [search]);
+  }, [loadData, search]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -321,8 +326,8 @@ function ConversationsTab() {
     try {
       const msgs = await conversations.messages(conv.id);
       setMessages(Array.isArray(msgs) ? msgs : []);
-    } catch (err: any) {
-      showToast(err.message || "Lỗi tải tin nhắn", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi tải tin nhắn", "error");
     } finally {
       setMessagesLoading(false);
     }
@@ -335,8 +340,8 @@ function ConversationsTab() {
       const msg = await conversations.sendMessage(selectedConv.id, replyText.trim());
       setMessages((prev) => [...prev, msg]);
       setReplyText("");
-    } catch (err: any) {
-      showToast(err.message || "Lỗi gửi tin nhắn", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi gửi tin nhắn", "error");
     } finally {
       setSending(false);
     }
@@ -454,7 +459,6 @@ function ConversationsTab() {
         </div>
       ) : (
         <ChatPanel
-          convId={selectedConv.id}
           convName={selectedConv.userName || `User #${selectedConv.userId}`}
           messages={messages}
           loading={messagesLoading}
@@ -513,7 +517,13 @@ function RequestsTab() {
       .finally(() => setLoading(false));
   }, [page, statusFilter]);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchRequests();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchRequests]);
 
   useEffect(() => {
     msgsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -527,8 +537,8 @@ function RequestsTab() {
     try {
       const msgs = await conversations.messages(req.conversationId);
       setChatMsgs(Array.isArray(msgs) ? msgs : []);
-    } catch (err: any) {
-      showToast(err.message || "Lỗi tải tin nhắn", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi tải tin nhắn", "error");
     } finally {
       setChatLoading(false);
     }
@@ -541,8 +551,8 @@ function RequestsTab() {
       const msg = await conversations.sendMessage(chatConv.conversationId, replyText.trim());
       setChatMsgs((prev) => [...prev, msg]);
       setReplyText("");
-    } catch (err: any) {
-      showToast(err.message || "Lỗi gửi tin nhắn", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi gửi tin nhắn", "error");
     } finally {
       setSending(false);
     }
@@ -715,7 +725,7 @@ function RequestsTab() {
                             }`}>
                               {msg.messageText && <p className="font-body-md text-body-md">{msg.messageText}</p>}
                               {msg.imageUrls?.map((url, i) => (
-                                <img key={i} src={url} alt="" className="mt-2 max-w-full max-h-48 object-cover" />
+                                <Image key={i} src={url} alt="" width={320} height={192} unoptimized className="mt-2 max-w-full max-h-48 object-cover" />
                               ))}
                               {msg.sender === "AI" && <ProductSuggestions suggestions={msg.productSuggestions || []} />}
                               <p className={`text-[11px] mt-1 ${

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Script from "next/script";
 import { auth, getSessionId, finalizeCustomerLogin } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
@@ -37,6 +36,38 @@ function waitForFacebookSdk(timeoutMs: number): Promise<boolean> {
   });
 }
 
+function loadExternalScript(id: string, src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof document === "undefined") {
+      resolve();
+      return;
+    }
+
+    const existing = document.getElementById(id) as HTMLScriptElement | null;
+    if (existing) {
+      if (existing.dataset.loaded === "true") {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      script.dataset.loaded = "true";
+      resolve();
+    };
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.body.appendChild(script);
+  });
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const toast = useToast();
@@ -50,9 +81,13 @@ export default function LoginPage() {
   const facebookAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
 
   useEffect(() => {
-    const sid = getSessionId();
-    setHasSessionId(!!sid);
-    setMergeCart(!!sid);
+    const timeoutId = window.setTimeout(() => {
+      const sid = getSessionId();
+      setHasSessionId(!!sid);
+      setMergeCart(!!sid);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -69,7 +104,7 @@ export default function LoginPage() {
     };
   }, [facebookAppId]);
 
-  async function handleGoogleCredential(resp: { credential: string }) {
+  const handleGoogleCredential = useCallback(async (resp: { credential: string }) => {
     setLoading(true);
     try {
       const data = await auth.googleLogin(resp.credential);
@@ -83,7 +118,29 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [mergeCart, router, toast]);
+
+  useEffect(() => {
+    if (!googleClientId) return;
+    let cancelled = false;
+
+    loadExternalScript("google-identity-sdk", "https://accounts.google.com/gsi/client")
+      .then(() => {
+        if (cancelled || !window.google) return;
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCredential,
+          auto_select: false,
+        });
+      })
+      .catch(() => {
+        console.error("[google] SDK script load failed");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleClientId, handleGoogleCredential]);
 
   async function handleFacebookLogin() {
     if (!facebookAppId) return;
@@ -131,6 +188,27 @@ export default function LoginPage() {
       toast.showToast("Không thể mở cửa sổ đăng nhập Facebook.", "error");
     }
   }
+
+  useEffect(() => {
+    if (!facebookAppId) return;
+    let cancelled = false;
+
+    loadExternalScript("facebook-sdk", "https://connect.facebook.net/en_US/sdk.js")
+      .then(async () => {
+        console.log("[facebook] SDK script loaded");
+        const ok = await waitForFacebookSdk(8000);
+        if (cancelled) return;
+        if (ok) initFacebookSdk(facebookAppId);
+        else console.error("[facebook] KhÃ´ng táº£i Ä‘Æ°á»£c Facebook SDK sau 8s");
+      })
+      .catch(() => {
+        console.error("[facebook] SDK script load failed (cÃ³ thá»ƒ do ad-blocker/cháº·n máº¡ng)");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [facebookAppId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -256,30 +334,6 @@ export default function LoginPage() {
           </p>
         </div>
       </form>
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        strategy="afterInteractive"
-        onLoad={() => {
-          if (googleClientId && window.google) {
-            window.google.accounts.id.initialize({
-              client_id: googleClientId,
-              callback: handleGoogleCredential,
-              auto_select: false,
-            });
-          }
-        }}
-      />
-      <Script
-        src="https://connect.facebook.net/en_US/sdk.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          console.log("[facebook] SDK script loaded");
-          if (facebookAppId) initFacebookSdk(facebookAppId);
-        }}
-        onError={() => {
-          console.error("[facebook] SDK script load failed (có thể do ad-blocker/chặn mạng)");
-        }}
-      />
     </section>
   );
 }

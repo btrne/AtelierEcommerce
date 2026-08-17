@@ -31,27 +31,39 @@ export default function ShippingPage() {
     setLoading(true);
     shippingProviders
       .admin()
-      .then((res: any) => setProviders(Array.isArray(res) ? res : res.items))
+      .then((res) => setProviders(res))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchProviders(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchProviders();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setShipLoading(true);
-    shipping
-      .listAll({ page: shipPage, pageSize: 20 })
-      .then((res) => {
-        if (!cancelled) {
-          setShipments(res.items);
-          setShipTotalPages(res.totalPages);
-          setShipLoading(false);
-        }
-      })
-      .catch(() => { if (!cancelled) setShipLoading(false); });
-    return () => { cancelled = true; };
+    const timeoutId = window.setTimeout(() => {
+      setShipLoading(true);
+      shipping
+        .listAll({ page: shipPage, pageSize: 20 })
+        .then((res) => {
+          if (!cancelled) {
+            setShipments(res.items);
+            setShipTotalPages(res.totalPages);
+            setShipLoading(false);
+          }
+        })
+        .catch(() => { if (!cancelled) setShipLoading(false); });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [shipPage]);
 
   const openCreate = () => {
@@ -83,8 +95,8 @@ export default function ShippingPage() {
       }
       setModalOpen(false);
       fetchProviders();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -96,8 +108,8 @@ export default function ShippingPage() {
         await shippingProviders.delete(id);
         showToast("Xóa đơn vị vận chuyển thành công", "success");
         fetchProviders();
-      } catch (err: any) {
-        showToast(err.message || "Lỗi", "error");
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : "Lỗi", "error");
       }
     }
   };

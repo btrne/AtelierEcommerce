@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { products as productsApi, attributes as attributesApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -120,13 +121,13 @@ export default function ProductDetailPage() {
           isDefault: variantForm.isDefault, isActive: variantForm.isActive,
           imageUrl: variantForm.imageUrl || undefined,
           attributeOptionIds: variantForm.attributeOptionIds.length > 0 ? variantForm.attributeOptionIds : undefined,
-        } as any);
+        });
         showToast("Cập nhật biến thể thành công", "success");
       }
       setVariantModal(null);
       await reloadProduct();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setVariantSubmitting(false);
     }
@@ -135,12 +136,12 @@ export default function ProductDetailPage() {
   const handleEditProductSubmit = async (formData: ProductFormData) => {
     setEditLoading(true);
     try {
-      await productsApi.update(Number(id), formData as any);
+      await productsApi.update(Number(id), formData);
       showToast("Cập nhật sản phẩm thành công", "success");
       setEditModalOpen(false);
       await reloadProduct();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setEditLoading(false);
     }
@@ -272,7 +273,7 @@ export default function ProductDetailPage() {
               <div key={v.id} className={`border ${!v.isActive ? "border-error/30 bg-error-container/30" : "border-outline-variant"} p-4 space-y-3`}>
                 <div className="flex gap-3">
                   {v.thumbnailUrl && (
-                    <img src={v.thumbnailUrl} alt={v.sku} className="w-20 h-20 object-cover shrink-0 border border-outline-variant" />
+                    <Image src={v.thumbnailUrl} alt={v.sku} width={80} height={80} unoptimized className="w-20 h-20 object-cover shrink-0 border border-outline-variant" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -394,7 +395,7 @@ export default function ProductDetailPage() {
             placeholder="https://..."
             className="w-full border-b border-outline-variant bg-surface pb-2 font-body-md text-body-md outline-none focus:border-primary" />
           {variantForm.imageUrl && (
-            <img src={variantForm.imageUrl} alt="preview" className="mt-2 h-20 w-20 object-cover border border-outline-variant" />
+            <Image src={variantForm.imageUrl} alt="preview" width={80} height={80} unoptimized className="mt-2 h-20 w-20 object-cover border border-outline-variant" />
           )}
         </div>
         {attrList.length > 0 && (

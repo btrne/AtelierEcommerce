@@ -27,15 +27,19 @@ export default function VouchersPage() {
   });
 
   useEffect(() => {
-    setLoading(true);
-    vouchersApi
-      .admin({ page, pageSize: 15 })
-      .then((res) => {
-        setData(res.items);
-        setTotalPages(res.totalPages);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const timeoutId = window.setTimeout(() => {
+      setLoading(true);
+      vouchersApi
+        .admin({ page, pageSize: 15 })
+        .then((res) => {
+          setData(res.items);
+          setTotalPages(res.totalPages);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [page]);
 
   const fetchData = () => {

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata } from "next";
 import { Playfair_Display, Montserrat } from "next/font/google";
 import Footer from "@/components/Footer";

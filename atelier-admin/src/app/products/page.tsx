@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { products as productsApi, categories } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -57,7 +58,11 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    const timeoutId = window.setTimeout(() => {
+      fetchProducts();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [fetchProducts]);
 
   const formatCurrency = (amount: number) =>
@@ -90,17 +95,17 @@ export default function ProductsPage() {
     setProductLoading(true);
     try {
       if (editingProduct) {
-        await productsApi.update(editingProduct.id, formData as any);
+        await productsApi.update(editingProduct.id, formData);
         showToast("Cập nhật sản phẩm thành công", "success");
       } else {
-        const created = await productsApi.create(formData as any);
+        const created = await productsApi.create(formData);
         showToast("Tạo sản phẩm thành công", "success");
         router.push(`/products/${created.id}`);
       }
       setModalOpen(false);
       fetchProducts();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setProductLoading(false);
     }
@@ -205,7 +210,7 @@ export default function ProductsPage() {
                     <Link href={`/products/${product.id}`} className="flex items-center gap-3 hover:text-secondary">
                       <div className="w-10 h-10 bg-surface-container-high flex items-center justify-center overflow-hidden">
                         {product.thumbnailUrl ? (
-                          <img src={product.thumbnailUrl} alt={product.name} className="w-full h-full object-cover" />
+                          <Image src={product.thumbnailUrl} alt={product.name} width={40} height={40} unoptimized className="w-full h-full object-cover" />
                         ) : (
                           <span className="material-symbols-outlined text-on-surface-variant/30">inventory_2</span>
                         )}

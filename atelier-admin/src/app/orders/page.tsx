@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { orders as ordersApi } from "@/lib/api";
-import { useToast } from "@/components/Toast";
 import type { OrderAdminDto } from "@/lib/types";
 
 const statusClass: Record<string, string> = {
@@ -25,7 +24,6 @@ const statusLabel: Record<string, string> = {
 };
 
 export default function OrdersPage() {
-  const { showToast } = useToast();
   const [data, setData] = useState<OrderAdminDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -35,7 +33,7 @@ export default function OrdersPage() {
   const [searchInput, setSearchInput] = useState("");
 
 
-  const fetchOrders = () => {
+  const fetchOrders = useCallback(() => {
     setLoading(true);
     ordersApi
       .admin({ page, pageSize: 15, status: statusFilter || undefined, search: search || undefined })
@@ -45,9 +43,15 @@ export default function OrdersPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [page, statusFilter, search]);
 
-  useEffect(() => { fetchOrders(); }, [page, statusFilter]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchOrders();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchOrders]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

@@ -24,6 +24,11 @@ public class AiController : ControllerBase
         {
             query.UserId = userId;
         }
+        else
+        {
+            query.UserId = null;
+            query.ConversationId = null;
+        }
 
         try
         {

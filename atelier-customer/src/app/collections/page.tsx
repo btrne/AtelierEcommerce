@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Image from "next/image";
 import { collections as collectionsApi } from "@/lib/api";
 import type { CollectionDto } from "@/lib/types";
 import CollectionCard from "@/components/CollectionCard";
@@ -157,10 +158,13 @@ function CollectionsPage() {
               >
                 <div className="absolute inset-0 bg-surface-container">
                   {col.bannerImageUrl ? (
-                    <img
+                    <Image
                       className="gallery-image-zoom absolute inset-0 w-full h-full object-cover"
                       src={col.bannerImageUrl}
                       alt={col.name}
+                      width={720}
+                      height={750}
+                      unoptimized
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -208,10 +212,13 @@ function CollectionsPage() {
                 >
                   <div className="relative aspect-[4/5] overflow-hidden mb-6">
                     {col.bannerImageUrl ? (
-                      <img
+                      <Image
                         className="gallery-image-zoom w-full h-full object-cover"
                         src={col.bannerImageUrl}
                         alt={col.name}
+                        width={400}
+                        height={500}
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full bg-surface-container flex items-center justify-center">

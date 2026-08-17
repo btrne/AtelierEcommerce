@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { orders as ordersApi, shipping as shippingApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import Modal from "@/components/Modal";
@@ -44,20 +45,25 @@ export default function OrderDetailPage() {
   const [checkingShipmentId, setCheckingShipmentId] = useState<number | null>(null);
 
   useEffect(() => {
-    const fetchDetail = async () => {
-      setLoading(true);
-      try {
-        const res = await ordersApi.adminDetail(Number(params.id));
-        setDetail(res);
-      } catch (err: any) {
-        showToast(err.message || "Lỗi tải chi tiết đơn hàng", "error");
-        router.push("/orders");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (params.id) fetchDetail();
-  }, [params.id]);
+    if (!params.id) return;
+    const timeoutId = window.setTimeout(() => {
+      const fetchDetail = async () => {
+        setLoading(true);
+        try {
+          const res = await ordersApi.adminDetail(Number(params.id));
+          setDetail(res);
+        } catch (err: unknown) {
+          showToast(err instanceof Error ? err.message : "Lỗi tải chi tiết đơn hàng", "error");
+          router.push("/orders");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDetail();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [params.id, router, showToast]);
 
   useEffect(() => {
     if (!params.id) return;
@@ -75,8 +81,8 @@ export default function OrderDetailPage() {
       const refreshedShipments = await shippingApi.list(Number(params.id));
       setShipments(refreshedShipments);
       showToast("Cập nhật trạng thái đơn hàng thành công", "success");
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setUpdating(false);
     }
@@ -84,10 +90,14 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (shipModalOpen && detail?.preferredCarrierCode && providers.length > 0) {
-      const matched = providers.find(
-        (p) => p.code?.toLowerCase() === detail.preferredCarrierCode!.toLowerCase()
-      );
-      if (matched) setSelectedProviderId(matched.id);
+      const timeoutId = window.setTimeout(() => {
+        const matched = providers.find(
+          (p) => p.code?.toLowerCase() === detail.preferredCarrierCode!.toLowerCase()
+        );
+        if (matched) setSelectedProviderId(matched.id);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
   }, [shipModalOpen, detail?.preferredCarrierCode, providers]);
 
@@ -106,8 +116,8 @@ export default function OrderDetailPage() {
       setDetail(refreshedDetail);
       const refreshedShipments = await shippingApi.list(Number(params.id));
       setShipments(refreshedShipments);
-    } catch (err: any) {
-      showToast(err.message || "Lỗi tạo vận đơn", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi tạo vận đơn", "error");
     } finally {
       setCreatingShipment(false);
     }
@@ -123,8 +133,8 @@ export default function OrderDetailPage() {
       const refreshed = await shippingApi.list(Number(params.id));
       setShipments(refreshed);
       showToast("Cập nhật trạng thái thành công", "success");
-    } catch (err: any) {
-      showToast(err.message || "Lỗi kiểm tra trạng thái", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi kiểm tra trạng thái", "error");
     } finally {
       setCheckingShipmentId(null);
     }
@@ -252,7 +262,7 @@ export default function OrderDetailPage() {
             detail.items.map((item) => (
               <div key={item.id} className="flex items-center gap-4 p-3">
                 {item.imageUrl && (
-                  <img src={item.imageUrl} alt="" className="w-14 h-14 object-cover bg-surface-container-high" />
+                  <Image src={item.imageUrl} alt="" width={56} height={56} unoptimized className="w-14 h-14 object-cover bg-surface-container-high" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-body-md font-bold truncate">{item.productName}</p>

@@ -19,6 +19,15 @@ public class ConversationsController : ControllerBase
         _mediator = mediator;
     }
 
+    private int? GetUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(userIdClaim, out var userId) ? userId : null;
+    }
+
+    private bool CanAccessAllConversations() =>
+        User.IsInRole("Admin") || User.IsInRole("Staff");
+
     [Authorize(Roles = "Admin")]
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? type = null, [FromQuery] string? search = null, [FromQuery] bool? hasCustomRequests = null)
@@ -58,11 +67,32 @@ public class ConversationsController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpGet("{id}/messages")]
     public async Task<IActionResult> GetMessages(int id)
     {
-        var result = await _mediator.Send(new GetMessagesQuery { ConversationId = id });
-        return Ok(result);
+        var userId = GetUserId();
+        if (userId == null)
+            return Unauthorized();
+
+        try
+        {
+            var result = await _mediator.Send(new GetMessagesQuery
+            {
+                ConversationId = id,
+                UserId = userId,
+                CanAccessAll = CanAccessAllConversations(),
+            });
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
     }
 
     [Authorize]
@@ -70,16 +100,23 @@ public class ConversationsController : ControllerBase
     public async Task<IActionResult> SendMessage(int id, [FromBody] SendMessageCommand command)
     {
         command.ConversationId = id;
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userIdClaim != null && int.TryParse(userIdClaim, out _))
-        {
-            var isAdmin = User.IsInRole("Admin") || User.IsInRole("Staff");
-            command.Sender = isAdmin ? "Admin" : "Customer";
-        }
+        var userId = GetUserId();
+        if (userId == null)
+            return Unauthorized();
+
+        var canAccessAll = CanAccessAllConversations();
+        command.UserId = userId;
+        command.CanAccessAll = canAccessAll;
+        command.Sender = canAccessAll ? "Admin" : "Customer";
+
         try
         {
             var result = await _mediator.Send(command);
             return Ok(result);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (Exception ex)
         {

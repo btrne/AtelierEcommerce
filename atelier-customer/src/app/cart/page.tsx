@@ -2,14 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { cart as cartApi, auth, combos as combosApi, products as productsApi, wishlist as wishlistApi, isAuthenticated } from "@/lib/api";
+import Image from "next/image";
+import { cart as cartApi, combos as combosApi, products as productsApi, wishlist as wishlistApi, isAuthenticated } from "@/lib/api";
 import type { CartDto } from "@/lib/types";
 import { formatCurrency } from "@/utils/format";
 import { useToast } from "@/components/Toast";
 
 export default function CartPage() {
-  const router = useRouter();
   const toast = useToast();
   const [cart, setCart] = useState<CartDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +23,11 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
-    loadCart().finally(() => setLoading(false));
+    const timeoutId = window.setTimeout(() => {
+      loadCart().finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadCart]);
 
   async function handleUpdateQuantity(itemId: number, quantity: number) {
@@ -168,9 +171,12 @@ export default function CartPage() {
 
               {/* Image */}
               <div className="aspect-[4/5] bg-surface-container-low overflow-hidden">
-                <img
+                <Image
                   src={item.productImage || "/placeholder.svg"}
                   alt={item.productName}
+                  width={120}
+                  height={150}
+                  unoptimized
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -272,9 +278,6 @@ export default function CartPage() {
                       onClick={async () => {
                         try {
                           if (!combo.allItemsInCart) {
-                            const comboDetail = await combosApi.forProduct(0).catch(() => []);
-                            const missingIds = cart.suggestedCombos
-                              .find((c) => c.comboId === combo.comboId);
                             const cartProductIds = cart.items.map((i) => i.productId);
                             const allCombos = await combosApi.checkCart(cartProductIds);
                             const found = allCombos.applicableCombos.find((c) => c.comboId === combo.comboId);
@@ -283,7 +286,7 @@ export default function CartPage() {
                                 try {
                                   const detail = await productsApi.detail(pid);
                                   if (detail && detail.variants && detail.variants.length > 0) {
-                                    const dv = detail.variants.find((v: any) => v.isDefault) || detail.variants[0];
+                                    const dv = detail.variants.find((v) => v.isDefault) || detail.variants[0];
                                     await cartApi.add({ productVariantId: dv.id, quantity: 1 });
                                   }
                                 } catch {}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useRef } from "react";
 import { categories } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -28,12 +28,6 @@ export default function CategoriesPage() {
 
   const autoSlug = (name: string) => name.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-  useEffect(() => {
-    if (!slugManuallyEdited && form.name) {
-      setForm((prev) => ({ ...prev, slug: autoSlug(prev.name) }));
-    }
-  }, [form.name, slugManuallyEdited]);
-
   // Product management state
   const [productModalCategory, setProductModalCategory] = useState<CategoryAdminDto | null>(null);
   const [categoryProducts, setCategoryProducts] = useState<ProductAdminDto[]>([]);
@@ -48,12 +42,18 @@ export default function CategoriesPage() {
     setLoading(true);
     categories
       .admin()
-      .then((res) => setData(Array.isArray(res) ? res : (res as any).items))
+      .then((res) => setData(res))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -200,7 +200,10 @@ export default function CategoriesPage() {
           <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1">TÊN DANH MỤC</label>
           <input
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => {
+              const name = e.target.value;
+              setForm({ ...form, name, slug: slugManuallyEdited ? form.slug : autoSlug(name) });
+            }}
             placeholder="Nhập tên danh mục"
             className="w-full border-b border-outline-variant bg-surface pb-2 font-body-md text-body-md outline-none focus:border-primary"
           />
@@ -239,7 +242,7 @@ export default function CategoriesPage() {
             {categoryProducts.map((p) => (
               <div key={p.id} className="flex items-center gap-3 p-2 border border-outline-variant/50">
                 {p.thumbnailUrl ? (
-                  <img src={p.thumbnailUrl} alt="" className="w-12 h-12 object-cover bg-surface-container-high shrink-0" />
+                  <Image src={p.thumbnailUrl} alt="" width={48} height={48} unoptimized className="w-12 h-12 object-cover bg-surface-container-high shrink-0" />
                 ) : (
                   <div className="w-12 h-12 bg-surface-container-high flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined text-on-surface-variant/30">image</span>

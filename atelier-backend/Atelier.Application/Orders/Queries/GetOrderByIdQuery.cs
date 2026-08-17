@@ -23,7 +23,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, objec
     {
         var query = _context.Orders
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.ProductVariant)
+                .ThenInclude(oi => oi.ProductVariant!)
                     .ThenInclude(pv => pv.ProductVariantImages)
             .Include(o => o.PaymentMethod)
             .Include(o => o.OrderLogs)
@@ -81,7 +81,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, objec
                 {
                     id = s.Id,
                     orderId = s.OrderId,
-                    shippingProviderName = s.ShippingProvider.Name,
+                    shippingProviderName = s.ShippingProvider != null ? s.ShippingProvider.Name : "",
                     trackingCode = s.TrackingCode,
                     shippingFee = s.ShippingFee,
                     status = s.Status,

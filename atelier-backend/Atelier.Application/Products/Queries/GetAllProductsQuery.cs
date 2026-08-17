@@ -86,7 +86,7 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, L
                 p.ProductVariants
                     .SelectMany(v => v.OrderItems)
                     .Where(oi => oi.Rating != null)
-                    .Average(oi => (double?)oi.Rating.Stars) >= (double)request.MinRating.Value);
+                    .Average(oi => (double?)oi.Rating!.Stars) >= (double)request.MinRating.Value);
 
         if (request.IsPreorder.HasValue)
             query = query.Where(p => p.IsPreorder == request.IsPreorder.Value);
@@ -138,7 +138,7 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, L
                 RatingAverage = p.ProductVariants
                     .SelectMany(v => v.OrderItems)
                     .Where(oi => oi.Rating != null)
-                    .Select(oi => (decimal?)oi.Rating.Stars)
+                    .Select(oi => (decimal?)oi.Rating!.Stars)
                     .DefaultIfEmpty()
                     .Average() ?? 0m,
                 CollectionNames = p.ProductCollections.Select(pc => pc.Collection.Name).ToList(),

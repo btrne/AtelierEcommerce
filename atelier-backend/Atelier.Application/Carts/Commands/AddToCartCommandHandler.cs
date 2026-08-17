@@ -16,6 +16,9 @@ namespace Atelier.Application.Carts.Commands
 
         public async Task<int> Handle(AddToCartCommand request, CancellationToken cancellationToken)
         {
+            if (!request.UserId.HasValue && string.IsNullOrWhiteSpace(request.SessionId))
+                throw new UnauthorizedAccessException("Cart owner is required.");
+
             // 1. Tìm giỏ hàng hiện có
             var cart = await _context.Carts
                 .Include(c => c.CartItems)

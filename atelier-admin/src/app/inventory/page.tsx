@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { inventory as inventoryApi, products as productsApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import Modal from "@/components/Modal";
@@ -42,21 +43,21 @@ function InventoryContent() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ productVariantId: 0, transactionType: "Import", quantity: 0, note: "" });
 
-  const fetchVariants = async () => {
+  const fetchVariants = useCallback(async () => {
     try {
       const res = await productsApi.variants();
       const list = Array.isArray(res) ? res : [];
       setVariants(list);
       setLowStock(list.filter((v) => v.quantity >= 0).sort((a, b) => a.quantity - b.quantity).slice(0, 5));
     } catch { setVariants([]); setLowStock([]); }
-  };
+  }, []);
 
   const getThumbnail = (variantId: number): string | null => {
     const v = variants.find((x) => x.id === variantId);
     return v?.thumbnailUrl || null;
   };
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     inventoryApi
       .admin({ page, pageSize: 15 })
@@ -66,23 +67,33 @@ function InventoryContent() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { fetchData(); fetchVariants(); }, [page]);
+  }, [page]);
 
   useEffect(() => {
-    const variantId = searchParams.get("variantId");
-    if (variantId) {
-      openCreate(Number(variantId));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+      fetchVariants();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData, fetchVariants]);
 
   const openCreate = async (variantId?: number) => {
     setForm({ productVariantId: variantId || 0, transactionType: "Import", quantity: 0, note: "" });
     await fetchVariants();
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    const variantId = searchParams.get("variantId");
+    if (!variantId) return;
+    const timeoutId = window.setTimeout(() => {
+      openCreate(Number(variantId));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleSubmit = async () => {
     if (!form.productVariantId || form.quantity <= 0) return;
@@ -92,8 +103,8 @@ function InventoryContent() {
       showToast("Tạo giao dịch thành công", "success");
       setModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -157,7 +168,7 @@ function InventoryContent() {
                       <div className="w-10 h-10 bg-surface-container-high flex items-center justify-center overflow-hidden shrink-0">
                         {(() => {
                           const thumb = getThumbnail(t.productVariantId);
-                          if (thumb) return <img src={thumb} alt="" className="w-full h-full object-cover" />;
+                          if (thumb) return <Image src={thumb} alt="" width={40} height={40} unoptimized className="w-full h-full object-cover" />;
                           return <span className="material-symbols-outlined text-on-surface-variant/30 text-sm">inventory_2</span>;
                         })()}
                       </div>

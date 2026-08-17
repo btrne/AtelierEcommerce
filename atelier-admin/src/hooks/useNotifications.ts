@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { notifications as api } from "@/lib/api";
 import type { NotificationDto } from "@/lib/types";
 
@@ -26,23 +26,30 @@ const API_BASE =
 export function useNotifications() {
   const [list, setList] = useState<NotificationDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const readIds = useRef<Set<string>>(getReadIds());
+  const [readIds, setReadIds] = useState<Set<string>>(() => getReadIds());
   const eventSource = useRef<EventSource | null>(null);
 
-  const unreadCount = list.filter((n) => !readIds.current.has(n.id)).length;
+  const unreadCount = useMemo(
+    () => list.filter((n) => !readIds.has(n.id)).length,
+    [list, readIds]
+  );
 
   // Fetch recent on mount
   useEffect(() => {
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    api
-      .recent()
-      .then((data) => setList(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const timeoutId = window.setTimeout(() => {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      api
+        .recent()
+        .then((data) => setList(data))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   // SSE connection
@@ -75,15 +82,20 @@ export function useNotifications() {
   }, []);
 
   const markAsRead = useCallback((id: string) => {
-    readIds.current.add(id);
-    saveReadIds(readIds.current);
-    setList((prev) => [...prev]);
+    setReadIds((prev) => {
+      const next = new Set(prev).add(id);
+      saveReadIds(next);
+      return next;
+    });
   }, []);
 
   const markAllAsRead = useCallback(() => {
-    list.forEach((n) => readIds.current.add(n.id));
-    saveReadIds(readIds.current);
-    setList((prev) => [...prev]);
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      list.forEach((n) => next.add(n.id));
+      saveReadIds(next);
+      return next;
+    });
   }, [list]);
 
   return {

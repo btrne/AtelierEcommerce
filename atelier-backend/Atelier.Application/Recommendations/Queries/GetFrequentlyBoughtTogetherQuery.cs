@@ -73,7 +73,7 @@ public class GetFrequentlyBoughtTogetherQueryHandler
                 RatingAverage = p.ProductVariants
                     .SelectMany(v => v.OrderItems)
                     .Where(oi => oi.Rating != null)
-                    .Select(oi => (decimal?)oi.Rating.Stars)
+                    .Select(oi => (decimal?)oi.Rating!.Stars)
                     .DefaultIfEmpty()
                     .Average() ?? 0m,
                 CollectionNames = p.ProductCollections.Select(pc => pc.Collection.Name).ToList(),

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function StoryPage() {
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -29,10 +30,14 @@ export default function StoryPage() {
     <div>
       {/* Hero */}
       <section className="relative h-[calc(100vh-148px)] min-h-[600px] overflow-hidden bg-primary-container">
-        <img
+        <Image
           alt="Atelier Story"
           className="w-full h-full object-cover"
           src="https://images.unsplash.com/photo-1473188588951-666fce8e7c68?w=1600&q=80"
+          width={1600}
+          height={900}
+          priority
+          unoptimized
         />
         <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-center px-margin-mobile">
           <div className="max-w-4xl">
@@ -101,17 +106,23 @@ export default function StoryPage() {
             </div>
             <div className="order-1 lg:order-2 lg:w-5/12 relative reveal-up">
               <div className="aspect-[3/4] overflow-hidden">
-                <img
+                <Image
                   alt="Xưởng chế tác Atelier"
                   className="w-full h-full object-cover"
                   src="https://images.unsplash.com/photo-1599202860130-f600f4948364?w=800&q=80"
+                  width={800}
+                  height={1067}
+                  unoptimized
                 />
               </div>
               <div className="absolute -bottom-4 -left-4 hidden md:block w-24 aspect-square border-[6px] border-surface shadow-xl">
-                <img
+                <Image
                   alt="Chi tiết chế tác"
                   className="w-full h-full object-cover"
                   src="https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?w=400&q=80"
+                  width={96}
+                  height={96}
+                  unoptimized
                 />
               </div>
             </div>
@@ -133,10 +144,13 @@ export default function StoryPage() {
           <div className="flex flex-col lg:flex-row items-center gap-16 max-w-6xl mx-auto">
             <div className="lg:w-1/2 reveal-up">
               <div className="aspect-[4/5] overflow-hidden">
-                <img
+                <Image
                   alt="Nghệ nhân chế tác da"
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                   src="https://images.unsplash.com/photo-1562157873-818bc0726f68?w=800&q=80"
+                  width={800}
+                  height={1000}
+                  unoptimized
                 />
               </div>
             </div>
@@ -214,17 +228,23 @@ export default function StoryPage() {
             </div>
             <div className="lg:w-5/12 relative reveal-up">
               <div className="aspect-[3/4] overflow-hidden">
-                <img
+                <Image
                   alt="Da thuộc cao cấp"
                   className="w-full h-full object-cover"
                   src="https://images.unsplash.com/photo-1622560480654-d96214fdc887?w=800&q=80"
+                  width={800}
+                  height={1067}
+                  unoptimized
                 />
               </div>
               <div className="absolute -bottom-3 -right-3 hidden md:block w-20 aspect-square border-[6px] border-surface shadow-xl">
-                <img
+                <Image
                   alt="Chi tiết da"
                   className="w-full h-full object-cover"
                   src="https://images.unsplash.com/photo-1622560480654-d96214fdc887?w=400&q=80"
+                  width={80}
+                  height={80}
+                  unoptimized
                 />
               </div>
             </div>
@@ -325,10 +345,13 @@ export default function StoryPage() {
             </div>
             <div className="lg:w-1/3 relative reveal-up">
               <div className="aspect-[3/4] overflow-hidden">
-                <img
+                <Image
                   alt="Sản phẩm Atelier"
                   className="w-full h-full object-cover"
                   src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80"
+                  width={800}
+                  height={1067}
+                  unoptimized
                 />
               </div>
             </div>

@@ -24,12 +24,18 @@ export default function PaymentsPage() {
     setLoading(true);
     paymentMethods
       .admin()
-      .then((res: any) => setData(Array.isArray(res) ? res : res.items))
+      .then((res) => setData(res))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -58,8 +64,8 @@ export default function PaymentsPage() {
       }
       setModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -71,8 +77,8 @@ export default function PaymentsPage() {
         await paymentMethods.delete(id);
         showToast("Xóa phương thức thanh toán thành công", "success");
         fetchData();
-      } catch (err: any) {
-        showToast(err.message || "Lỗi", "error");
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : "Lỗi", "error");
       }
     }
   };

@@ -84,6 +84,7 @@ public class VouchersController : ControllerBase
     [HttpPost("apply")]
     public async Task<IActionResult> Apply([FromBody] ApplyVoucherQuery query)
     {
+        query.UserId = GetUserId();
         var result = await _mediator.Send(query);
         if (result == null)
             return NotFound(new { valid = false, message = "Mã voucher không hợp lệ hoặc đã hết hạn." });
@@ -95,5 +96,11 @@ public class VouchersController : ControllerBase
     {
         var result = await _mediator.Send(new GetActiveVouchersQuery());
         return Ok(result);
+    }
+
+    private int? GetUserId()
+    {
+        var claim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(claim, out var userId) ? userId : null;
     }
 }

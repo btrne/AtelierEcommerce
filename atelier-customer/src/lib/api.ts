@@ -303,27 +303,30 @@ export const cart = {
       return res;
     });
   },
-  updateQuantity: (itemId: number, quantity: number) =>
-    request<{ message: string }>(`/carts/items/${itemId}`, { method: "PUT", body: JSON.stringify({ quantity }) }).then((res) => {
+  updateQuantity: (itemId: number, quantity: number) => {
+    const body: Record<string, unknown> = { quantity };
+    if (!isAuthenticated()) body.sessionId = getOrCreateSessionId();
+    return request<{ message: string }>(`/carts/items/${itemId}`, { method: "PUT", body: JSON.stringify(body) }).then((res) => {
       dispatchCartUpdated();
       return res;
-    }),
-  remove: (itemId: number) =>
-    request<{ message: string }>(`/carts/items/${itemId}`, { method: "DELETE" }).then((res) => {
+    });
+  },
+  remove: (itemId: number) => {
+    const params = new URLSearchParams();
+    if (!isAuthenticated()) params.set("sessionId", getOrCreateSessionId());
+    const qs = params.toString();
+    return request<{ message: string }>(`/carts/items/${itemId}${qs ? `?${qs}` : ""}`, { method: "DELETE" }).then((res) => {
       dispatchCartUpdated();
       track("remove_from_cart", null, null, { cartItemId: itemId });
       return res;
-    }),
+    });
+  },
   merge: (data: { sessionId?: string; items?: { productVariantId: number; quantity: number }[] }) =>
     request<void>("/carts/merge", { method: "POST", body: JSON.stringify(data) }),
   clear: async () => {
     const cartData = await cart.get();
     const items = cartData.items;
-    await Promise.all(items.map(item =>
-      request<{ message: string }>(`/carts/items/${item.id}`, { method: "DELETE" })
-    ));
-    dispatchCartUpdated();
-    items.forEach(item => track("remove_from_cart", "Product", item.variantId, { quantity: item.quantity }));
+    await Promise.all(items.map(item => cart.remove(item.id)));
   },
 };
 

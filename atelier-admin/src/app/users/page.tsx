@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminUsers } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import Modal from "@/components/Modal";
@@ -16,7 +16,7 @@ export default function UsersPage() {
   const [selected, setSelected] = useState<UserAdminDto | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchData = () => {
+  const fetchData = useCallback(() => {
     setLoading(true);
     adminUsers
       .list({ page, pageSize: 15 })
@@ -26,10 +26,15 @@ export default function UsersPage() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [page]);
 
-  useEffect(() => { fetchData(); }, [page]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchData]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(amount);

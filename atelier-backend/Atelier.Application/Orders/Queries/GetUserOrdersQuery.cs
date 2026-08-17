@@ -43,7 +43,7 @@ public class GetUserOrdersQueryHandler : IRequestHandler<GetUserOrdersQuery, Lis
         var orders = await _context.Orders
             .Where(o => o.UserId == request.UserId)
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.ProductVariant)
+                .ThenInclude(oi => oi.ProductVariant!)
                     .ThenInclude(pv => pv.ProductVariantImages)
             .OrderByDescending(o => o.CreatedAt)
             .Select(o => new GetUserOrdersQuery.OrderSummary

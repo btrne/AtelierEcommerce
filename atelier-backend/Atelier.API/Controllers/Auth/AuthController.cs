@@ -1,8 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Atelier.Application.Common.Interfaces;
+using Atelier.Application.Common.Security;
 using Atelier.Api.Services;
 using Atelier.Domain.Entities;
 using Google.Apis.Auth;
@@ -42,7 +41,7 @@ namespace Atelier.Api.Controllers.Auth
                     .ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (user == null || string.IsNullOrWhiteSpace(user.PasswordHash) || !VerifyPassword(request.Password, user.PasswordHash))
+            if (user == null || string.IsNullOrWhiteSpace(user.PasswordHash) || !PasswordHasher.VerifyPassword(request.Password, user.PasswordHash))
             {
                 return BadRequest(new { Error = "Email hoặc mật khẩu không hợp lệ." });
             }
@@ -56,6 +55,12 @@ namespace Atelier.Api.Controllers.Auth
                 .Where(ur => ur.Role != null && ur.Role.IsActive)
                 .Select(ur => ur.Role.Code)
                 .ToList();
+
+            if (PasswordHasher.NeedsRehash(user.PasswordHash))
+            {
+                user.PasswordHash = PasswordHasher.HashPassword(request.Password);
+                await _context.SaveChangesAsync(CancellationToken.None);
+            }
 
             var token = _tokenService.GenerateToken(user, roles);
 
@@ -95,7 +100,7 @@ namespace Atelier.Api.Controllers.Auth
             var user = new User
             {
                 Email = request.Email,
-                PasswordHash = HashPassword(request.Password),
+                PasswordHash = PasswordHasher.HashPassword(request.Password),
                 FullName = request.FullName,
                 Phone = request.Phone ?? "",
                 IsActive = true,
@@ -275,7 +280,7 @@ namespace Atelier.Api.Controllers.Auth
             user = new User
             {
                 Email = email,
-                PasswordHash = HashPassword(Guid.NewGuid().ToString("N")),
+                PasswordHash = PasswordHasher.HashPassword(Guid.NewGuid().ToString("N")),
                 FullName = fullName,
                 Phone = "",
                 Provider = provider,
@@ -317,18 +322,6 @@ namespace Atelier.Api.Controllers.Auth
                 FullName = user.FullName,
                 Roles = roles,
             });
-        }
-
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToHexString(hashedBytes);
-        }
-
-        private static bool VerifyPassword(string password, string passwordHash)
-        {
-            return HashPassword(password) == passwordHash;
         }
 
         public class LoginRequest

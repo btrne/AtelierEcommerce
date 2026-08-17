@@ -8,6 +8,8 @@ namespace Atelier.Application.Conversations.Queries;
 public class GetMessagesQuery : IRequest<List<MessageDto>>
 {
     public int ConversationId { get; set; }
+    public int? UserId { get; set; }
+    public bool CanAccessAll { get; set; }
 }
 
 public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, List<MessageDto>>
@@ -21,6 +23,18 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, List<Me
 
     public async Task<List<MessageDto>> Handle(GetMessagesQuery request, CancellationToken cancellationToken)
     {
+        var conversation = await _context.Conversations
+            .AsNoTracking()
+            .Where(c => c.Id == request.ConversationId)
+            .Select(c => new { c.UserId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (conversation == null)
+            throw new Exception($"Không tìm thấy hội thoại với ID = {request.ConversationId}");
+
+        if (!request.CanAccessAll && (!request.UserId.HasValue || conversation.UserId != request.UserId.Value))
+            throw new UnauthorizedAccessException("Conversation does not belong to the current user.");
+
         var messages = await _context.Messages
             .Where(m => m.ConversationId == request.ConversationId)
             .OrderBy(m => m.CreatedAt)

@@ -21,10 +21,14 @@ public class RemoveComboFromCartCommandHandler : IRequestHandler<RemoveComboFrom
 
     public async Task Handle(RemoveComboFromCartCommand request, CancellationToken cancellationToken)
     {
+        if (!request.UserId.HasValue && string.IsNullOrWhiteSpace(request.SessionId))
+            throw new UnauthorizedAccessException("Cart owner is required.");
+
         var cart = await _context.Carts
             .FirstOrDefaultAsync(c =>
-                (request.UserId.HasValue && c.UserId == request.UserId) ||
-                (!string.IsNullOrEmpty(request.SessionId) && c.SessionId == request.SessionId),
+                request.UserId.HasValue
+                    ? c.UserId == request.UserId.Value
+                    : c.SessionId == request.SessionId,
                 cancellationToken);
 
         if (cart == null) return;

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { products as productsApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import ProductForm from "@/components/ProductForm";

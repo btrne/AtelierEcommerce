@@ -25,7 +25,7 @@ public class GetAllRatingsQueryHandler : IRequestHandler<GetAllRatingsQuery, Pag
     {
         var query = _context.Ratings
             .Include(r => r.User)
-            .Include(r => r.OrderItem).ThenInclude(oi => oi.ProductVariant).ThenInclude(pv => pv.Product)
+            .Include(r => r.OrderItem!).ThenInclude(oi => oi.ProductVariant!).ThenInclude(pv => pv.Product)
             .AsQueryable();
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -38,8 +38,12 @@ public class GetAllRatingsQueryHandler : IRequestHandler<GetAllRatingsQuery, Pag
             {
                 Id = r.Id,
                 UserId = r.UserId,
-                UserName = r.User.FullName ?? r.User.Email,
-                ProductName = r.OrderItem.ProductVariant.Product.Name ?? "",
+                UserName = r.User != null ? r.User.FullName ?? r.User.Email : "",
+                ProductName = r.OrderItem != null &&
+                              r.OrderItem.ProductVariant != null &&
+                              r.OrderItem.ProductVariant.Product != null
+                    ? r.OrderItem.ProductVariant.Product.Name ?? ""
+                    : "",
                 Stars = r.Stars,
                 Comment = r.Comment,
                 CreatedAt = r.CreatedAt,

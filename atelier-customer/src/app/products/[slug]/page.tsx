@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { products as productsApi, cart as cartApi, wishlist as wishlistApi, reviews as reviewsApi, recommendations as recommendationsApi, combos as combosApi, isAuthenticated } from "@/lib/api";
 import { track } from "@/lib/tracking";
-import type { ProductDetailCustomerDto, ProductVariantDto, ReviewDto, ProductComboCustomerDto } from "@/lib/types";
+import type { ProductCustomerDto, ProductDetailCustomerDto, ProductVariantDto, ReviewDto, ProductComboCustomerDto } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/utils/format";
 import { useToast } from "@/components/Toast";
 
@@ -94,14 +95,14 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [attributeSelections, setAttributeSelections] = useState<Record<number, number>>({});
   const [selectedSkuVariantId, setSelectedSkuVariantId] = useState<number | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity] = useState(1);
   const [currentImage, setCurrentImage] = useState(0);
   const [reviews, setReviews] = useState<ReviewDto[]>([]);
   const [canReview, setCanReview] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
-  const [fbtProducts, setFbtProducts] = useState<any[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<ProductCustomerDto[]>([]);
+  const [fbtProducts, setFbtProducts] = useState<ProductCustomerDto[]>([]);
   const [combos, setCombos] = useState<ProductComboCustomerDto[]>([]);
   const trackedSlug = useRef<string | null>(null);
 
@@ -250,10 +251,14 @@ export default function ProductDetailPage() {
         <div className="lg:col-span-5 flex flex-col md:flex-row-reverse gap-3">
           <div className="flex-grow aspect-[4/5] overflow-hidden bg-surface-container">
             {mainImage ? (
-              <img
+              <Image
                 alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                 src={mainImage}
+                width={640}
+                height={800}
+                priority
+                unoptimized
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-on-surface-variant font-label-caps text-label-caps">NO IMAGE</div>
@@ -269,7 +274,7 @@ export default function ProductDetailPage() {
                     i === currentImage ? "border border-primary" : "border border-transparent hover:border-outline"
                   }`}
                 >
-                  <img alt="" className={`w-full h-full object-cover ${i === currentImage ? "grayscale-0" : "grayscale hover:grayscale-0"} transition`} src={img} />
+                  <Image alt="" className={`w-full h-full object-cover ${i === currentImage ? "grayscale-0" : "grayscale hover:grayscale-0"} transition`} src={img} width={80} height={100} unoptimized />
                 </div>
               ))}
             </div>
@@ -441,17 +446,23 @@ export default function ProductDetailPage() {
             </div>
             <div className="order-1 lg:order-2 lg:w-1/4 relative">
               <div className="aspect-[3/4] overflow-hidden">
-                <img
+                <Image
                   alt="Nghệ thuật chế tác"
                   className="w-full h-full object-cover"
                   src={images[0] || variant?.thumbnailUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCp-l16AwP6qnAvY0w7qEje5eTMoAP7fM0ilOpPdL-oks5JcSvlc7Db6xvTkCgqLsfjlnNva6_LWXGn8Vrz0S9q_GLLH4qoba-qEDF0uQV3xPJ5jEs_0_Ekei3UfBhXR7pa49ne50YngtJLJOQExSE60NjZMx6TOgYmjAXLeUOb6JY6ejEaTxO4shF6WT-cK9AhAQTs6x-csswVRxoZWDL180gXVmtou8i_PV9TSk_yX-vTEGMCMH1CCspCZisy8zcQ7pORKi8ylRrU'}
+                  width={480}
+                  height={640}
+                  unoptimized
                 />
               </div>
               <div className="absolute -bottom-2 -left-2 hidden md:block w-16 aspect-square border-[4px] border-surface shadow-xl">
-                <img
+                <Image
                   alt="Chi tiết phụ kiện"
                   className="w-full h-full object-cover"
                   src={images[1] || images[0] || variant?.thumbnailUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBVVhPUWlcKqwpAIm1j_20LSCQEfb1M4oMIBmaOLRC_Sk8-Gayt4PG5LBYoRgVBTD8pc7nfBneKc27Fx2odZIzenGfC0oIeC7T0ju6gyJ1wT-Mi_kye_dMEH9KBTao7cMM4ReaOsuWrvOEn8wyxPutTfamsKvoV0_IMUUzaTyFwXHm45if9pc4UiMj5FlQAxPNf_iDQJ_VoNYuDQCl2Rx6FMFeTUy3-pMbNKY-MsJpQPxOE5IjLOpmTXUH_MbaNKaBuTtMM44Oy97In'}
+                  width={64}
+                  height={64}
+                  unoptimized
                 />
               </div>
             </div>
@@ -535,7 +546,7 @@ export default function ProductDetailPage() {
                 <Link key={p.id} href={`/products/${p.slug}`} className="group cursor-pointer">
                   <div className="aspect-[4/5] overflow-hidden bg-surface-container relative mb-4">
                     {p.thumbnailUrl ? (
-                      <img alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={p.thumbnailUrl} />
+                      <Image alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={p.thumbnailUrl} width={400} height={500} unoptimized />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-on-surface-variant font-label-caps text-label-caps">NO IMAGE</div>
                     )}
@@ -566,7 +577,7 @@ export default function ProductDetailPage() {
                       <Link key={p.id} href={`/products/${p.slug}`} className="flex items-center gap-3 group">
                         <div className="w-14 h-14 rounded-lg overflow-hidden bg-surface-container-high flex-shrink-0">
                           {p.thumbnailUrl ? (
-                            <img alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" src={p.thumbnailUrl} />
+                            <Image alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" src={p.thumbnailUrl} width={56} height={56} unoptimized />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-on-surface-variant text-[10px]">NO</div>
                           )}
@@ -598,7 +609,7 @@ export default function ProductDetailPage() {
                         try {
                           const detail = await productsApi.detail(p.id);
                           if (detail && detail.variants && detail.variants.length > 0) {
-                            const defaultVariant = detail.variants.find((v: any) => v.isDefault) || detail.variants[0];
+                            const defaultVariant = detail.variants.find((v) => v.isDefault) || detail.variants[0];
                             await cartApi.add({ productVariantId: defaultVariant.id, quantity: 1 });
                           }
                         } catch {}
@@ -628,7 +639,7 @@ export default function ProductDetailPage() {
                 <Link key={p.id} href={`/products/${p.slug}`} className="group cursor-pointer">
                   <div className="aspect-[4/5] overflow-hidden bg-surface-container relative mb-4">
                     {p.thumbnailUrl ? (
-                      <img alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={p.thumbnailUrl} />
+                      <Image alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={p.thumbnailUrl} width={400} height={500} unoptimized />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-on-surface-variant font-label-caps text-label-caps">NO IMAGE</div>
                     )}

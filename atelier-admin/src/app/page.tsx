@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import StatCard from "@/components/StatCard";
 import PieChart from "@/components/PieChart";
 import { dashboard, orders, products, collections as collectionsApi } from "@/lib/api";
@@ -151,7 +152,7 @@ export default function Dashboard() {
       }
     };
     fetchAll();
-  }, [fetchPeriodData]);
+  }, [analyticsDays, fetchPeriodData]);
 
   const handlePeriodChange = async (period: PeriodType) => {
     setSelectedPeriod(period);
@@ -289,9 +290,12 @@ export default function Dashboard() {
                 </span>
                 <div className="w-12 h-12 bg-surface-container-high border border-outline-variant flex-shrink-0 overflow-hidden">
                   {item.imageUrl ? (
-                    <img
+                    <Image
                       src={item.imageUrl}
                       alt={item.productName}
+                      width={48}
+                      height={48}
+                      unoptimized
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -337,9 +341,12 @@ export default function Dashboard() {
                 >
                   <div className="w-12 h-12 bg-surface-container-high border border-outline-variant flex-shrink-0 overflow-hidden">
                     {bannerUrl ? (
-                      <img
+                      <Image
                         src={bannerUrl}
                         alt={col.collectionName}
+                        width={48}
+                        height={48}
+                        unoptimized
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -669,7 +676,7 @@ export default function Dashboard() {
                   <span className="font-label-caps text-[14px] text-secondary w-6 text-center">{String(i + 1).padStart(2, "0")}</span>
                   <div className="w-10 h-10 bg-surface-container-high border border-outline-variant flex-shrink-0 overflow-hidden">
                     {item.thumbnailUrl ? (
-                      <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                      <Image src={item.thumbnailUrl} alt="" width={40} height={40} unoptimized className="w-full h-full object-cover" />
                     ) : (
                       <span className="material-symbols-outlined flex items-center justify-center h-full text-on-surface-variant/30 text-sm">image</span>
                     )}
@@ -713,7 +720,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-surface-container-high flex items-center justify-center overflow-hidden shrink-0">
                           {item.thumbnailUrl ? (
-                            <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                            <Image src={item.thumbnailUrl} alt="" width={40} height={40} unoptimized className="w-full h-full object-cover" />
                           ) : (
                             <span className="material-symbols-outlined text-on-surface-variant/30 text-sm">inventory_2</span>
                           )}
@@ -785,7 +792,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-surface-container-high flex items-center justify-center overflow-hidden shrink-0">
                           {item.thumbnailUrl ? (
-                            <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                            <Image src={item.thumbnailUrl} alt="" width={40} height={40} unoptimized className="w-full h-full object-cover" />
                           ) : (
                             <span className="material-symbols-outlined text-on-surface-variant/30 text-sm">inventory_2</span>
                           )}

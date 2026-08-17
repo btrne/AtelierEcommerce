@@ -14,6 +14,7 @@ export default function DashboardHeader() {
     roles: string[];
   } | null>(null);
   const [pageTitle, setPageTitle] = useState("");
+  const [now, setNow] = useState(0);
   const [bellOpen, setBellOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -21,7 +22,9 @@ export default function DashboardHeader() {
     useNotifications();
 
   useEffect(() => {
-    setProfile(auth.getUserProfile());
+    const timeoutId = window.setTimeout(() => {
+      setProfile(auth.getUserProfile());
+      setNow(Date.now());
     const path = pathname;
     if (path === "/") setPageTitle("Bảng Điều Khiển");
     else if (path.startsWith("/products")) setPageTitle("Sản Phẩm");
@@ -38,6 +41,13 @@ export default function DashboardHeader() {
     else if (path.startsWith("/support")) setPageTitle("Hỗ Trợ");
     else if (path.startsWith("/payments")) setPageTitle("Thanh Toán");
     else if (path.startsWith("/shipping")) setPageTitle("Vận Chuyển");
+    }, 0);
+    const intervalId = window.setInterval(() => setNow(Date.now()), 60000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
   }, [pathname]);
 
   // Close bell dropdown on outside click
@@ -97,7 +107,8 @@ export default function DashboardHeader() {
   };
 
   const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    if (!now) return "";
+    const diff = now - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "Vừa xong";
     if (mins < 60) return `${mins} phút trước`;

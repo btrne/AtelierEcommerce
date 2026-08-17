@@ -12,6 +12,8 @@ public class SendMessageCommand : IRequest<MessageDto>
     public string MessageText { get; set; } = null!;
     public string Sender { get; set; } = "Admin";
     public List<string>? ImageUrls { get; set; }
+    public int? UserId { get; set; }
+    public bool CanAccessAll { get; set; }
 }
 
 public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, MessageDto>
@@ -33,6 +35,9 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
 
         if (conversation == null)
             throw new Exception($"Không tìm thấy hội thoại với ID = {request.ConversationId}");
+
+        if (!request.CanAccessAll && (!request.UserId.HasValue || conversation.UserId != request.UserId.Value))
+            throw new UnauthorizedAccessException("Conversation does not belong to the current user.");
 
         var message = new Message
         {

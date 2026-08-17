@@ -27,7 +27,7 @@ public class GetOrderDetailQueryHandler : IRequestHandler<GetOrderDetailQuery, O
             .Include(o => o.PaymentMethod)
             .Include(o => o.Voucher)
             .Include(o => o.OrderItems)
-                .ThenInclude(oi => oi.ProductVariant)
+                .ThenInclude(oi => oi.ProductVariant!)
                     .ThenInclude(pv => pv.ProductVariantImages)
             .Include(o => o.Payments)
             .Include(o => o.OrderLogs)

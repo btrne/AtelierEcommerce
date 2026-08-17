@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { profile as profileApi, orders as ordersApi, wishlist as wishlistApi, cart as cartApi, auth, locations as locationsApi, customRequestsApi, reviews as reviewsApi } from "@/lib/api";
 import type { UserProfile, OrderCustomerDto, WishlistItemDto, AddressDto, OrderDetailDto, CustomRequestDto } from "@/lib/types";
@@ -34,18 +35,21 @@ export default function AccountPage() {
   const [wishlist, setWishlist] = useState<WishlistItemDto[]>([]);
   const [bespokeRequests, setBespokeRequests] = useState<CustomRequestDto[]>([]);
   const [bespokeDetail, setBespokeDetail] = useState<CustomRequestDto | null>(null);
-  const [bespokeLoading, setBespokeLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("info");
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [orderDetails, setOrderDetails] = useState<Record<number, OrderDetailDto>>({});
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    if (tab === "info" || tab === "wishlist" || tab === "orders" || tab === "bespoke") {
-      setActiveTab(tab);
-    }
+    const timeoutId = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "info" || tab === "wishlist" || tab === "orders" || tab === "bespoke") {
+        setActiveTab(tab);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   // Address modal
@@ -53,7 +57,6 @@ export default function AccountPage() {
   const [editingAddress, setEditingAddress] = useState<AddressDto | null>(null);
   const [addressForm, setAddressForm] = useState({ fullName: "", phoneNumber: "", street: "", ward: "", district: "", city: "", isDefault: false });
   const [saving, setSaving] = useState(false);
-  const [resolving, setResolving] = useState(false);
 
   // Province/Ward API
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -67,6 +70,12 @@ export default function AccountPage() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState({ fullName: "", phoneNumber: "", email: "" });
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // ---- Reviews ----
+  const [reviewModal, setReviewModal] = useState<{ orderItemId: number; productName: string } | null>(null);
+  const [reviewForm, setReviewForm] = useState({ stars: 5, comment: "" });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [ratedItems, setRatedItems] = useState<Set<number>>(new Set());
 
   const loadData = useCallback(async () => {
     if (!auth.isLoggedIn()) { router.push("/login"); return; }
@@ -93,7 +102,13 @@ export default function AccountPage() {
     finally { setLoading(false); }
   }, [router]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadData]);
 
   // ---- Profile Edit ----
   const openEditProfile = () => {
@@ -135,12 +150,6 @@ export default function AccountPage() {
       showToast("Thêm vào giỏ hàng thất bại", "error");
     }
   };
-
-  // ---- Reviews ----
-  const [reviewModal, setReviewModal] = useState<{ orderItemId: number; productName: string } | null>(null);
-  const [reviewForm, setReviewForm] = useState({ stars: 5, comment: "" });
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [ratedItems, setRatedItems] = useState<Set<number>>(new Set());
 
   const handleOpenReview = (orderItemId: number, productName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -218,16 +227,8 @@ export default function AccountPage() {
     setSelectedWard(null);
   }
 
-  // Resolve province/district/ward codes from names when editing
-  useEffect(() => {
-    if (!addressModal || !editingAddress || provinces.length === 0) return;
-    resolveAddressCodes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addressModal, editingAddress, provinces]);
-
   async function resolveAddressCodes() {
     if (!editingAddress) return;
-    setResolving(true);
     try {
       const addr = editingAddress;
       const province = provinces.find(p => p.name === addr.city);
@@ -244,10 +245,19 @@ export default function AccountPage() {
           if (ward) setSelectedWard(ward.code);
         }
       }
-    } finally {
-      setResolving(false);
-    }
+    } catch { }
   }
+
+  // Resolve province/district/ward codes from names when editing
+  useEffect(() => {
+    if (!addressModal || !editingAddress || provinces.length === 0) return;
+    const timeoutId = window.setTimeout(() => {
+      resolveAddressCodes();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressModal, editingAddress, provinces]);
 
   // ---- Address CRUD ----
   const openAddAddress = () => {
@@ -467,9 +477,12 @@ export default function AccountPage() {
                   </button>
                   <Link href={`/products/${item.productId}`}>
                     <div className="aspect-[3/4] bg-[#f2ede9] overflow-hidden">
-                      <img
+                      <Image
                         src={item.productImage || "/placeholder.svg"}
                         alt={item.productName}
+                        width={300}
+                        height={400}
+                        unoptimized
                         className="w-full h-full object-cover transition-opacity duration-700 group-hover:opacity-80"
                       />
                     </div>
@@ -541,9 +554,12 @@ export default function AccountPage() {
                       {order.items.length > 0 && (
                         <>
                           <div className="w-14 h-[56px] md:w-16 md:h-20 bg-surface-container overflow-hidden shrink-0">
-                            <img
+                            <Image
                               src={order.items[0].productImage || "/placeholder.svg"}
                               alt={order.items[0].productName}
+                              width={64}
+                              height={80}
+                              unoptimized
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -587,9 +603,12 @@ export default function AccountPage() {
                       {order.items.map((item, idx) => (
                         <div key={idx} className="flex gap-4 items-start">
                           <div className="w-14 h-[56px] bg-surface-container shrink-0 overflow-hidden">
-                            <img
+                            <Image
                               src={item.productImage || "/placeholder.svg"}
                               alt={item.productName}
+                              width={56}
+                              height={56}
+                              unoptimized
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -774,7 +793,7 @@ export default function AccountPage() {
                         )}
                         {r.imageUrl && (
                           <div className="w-full h-32 bg-surface-container overflow-hidden mb-2">
-                            <img src={r.imageUrl} alt="" className="w-full h-full object-cover" />
+                            <Image src={r.imageUrl} alt="" width={320} height={128} unoptimized className="w-full h-full object-cover" />
                           </div>
                         )}
                         {r.quotedPrice != null && (
@@ -801,7 +820,7 @@ export default function AccountPage() {
               <div className="border border-secondary/20 p-6 md:p-8 max-w-2xl">
                 {bespokeDetail.imageUrl && (
                   <div className="w-full h-64 bg-surface-container overflow-hidden mb-6">
-                    <img src={bespokeDetail.imageUrl} alt="" className="w-full h-full object-cover" />
+                    <Image src={bespokeDetail.imageUrl} alt="" width={672} height={256} unoptimized className="w-full h-full object-cover" />
                   </div>
                 )}
                 <h3 className="font-headline text-xl md:text-2xl mb-6">Yêu cầu #{bespokeDetail.id}</h3>

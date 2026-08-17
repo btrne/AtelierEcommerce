@@ -1,10 +1,9 @@
 using Atelier.Application.Common.Interfaces;
+using Atelier.Application.Common.Security;
 using Atelier.Application.DTOs;
 using Atelier.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Atelier.Application.Users.Commands;
 
@@ -34,7 +33,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserA
         var user = new User
         {
             Email = request.Email,
-            PasswordHash = HashPassword(request.Password),
+            PasswordHash = PasswordHasher.HashPassword(request.Password),
             FullName = request.FullName,
             Phone = request.Phone ?? "",
             IsActive = true,
@@ -75,10 +74,4 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserA
         };
     }
 
-    private static string HashPassword(string password)
-    {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToHexString(hashedBytes);
-    }
 }

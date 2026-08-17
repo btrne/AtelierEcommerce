@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { products as productsApi, collections as collectionsApi, categories as categoriesApi } from "@/lib/api";
 import type { ProductCustomerDto, CollectionDto, CategoryDto } from "@/lib/types";
 import ProductCard from "@/components/ProductCard";
@@ -13,7 +14,6 @@ export default function HomePage() {
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [categoryImages, setCategoryImages] = useState<Record<number, string>>({});
-  const [collectionProducts, setCollectionProducts] = useState<ProductCustomerDto[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -62,21 +62,6 @@ export default function HomePage() {
         setCategoryImages(catImageMap);
 
         setCategories(catArr);
-
-        // Fetch products for top 2 collections
-        const topCollections = sortedCollections.slice(0, 2);
-        const colProductMap: ProductCustomerDto[] = [];
-        for (const col of topCollections) {
-          if (col.slug) {
-            try {
-              const colRes = await productsApi.byCollection(col.slug, { pageSize: 5 });
-              if (colRes && colRes.items) {
-                colProductMap.push(...colRes.items);
-              }
-            } catch {}
-          }
-        }
-        setCollectionProducts(colProductMap);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -88,10 +73,14 @@ export default function HomePage() {
     <div>
       {/* Hero Section */}
       <section className="relative h-[calc(100vh-148px)] min-h-[600px] overflow-hidden bg-primary-container">
-        <img
+        <Image
           alt={heroCollection?.name || 'ATELIER Collection'}
           className="w-full h-full object-cover"
           src={heroCollection?.bannerImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCG38-Cl6zQNZDVrd0TK6R9s8-HzZlktQNLoV6OHS79K3mo330LUVxr23bN_UjytIxMHsv7E0Cj9vx7l4W5l7QETpWf5eRimrNwLTLuAuLSG5F8PYCqxpzEFBNOLOLK_vP79CVwuASPuK5LLGnXg9B1seGVe1l3M0rfaWyILwdZVfnUBECVUTI8PiN0Y_HTJd2RNkwpq9kBQIU-g6mi8s617WjhatqBygbQ4CeBFAIcITTppCSjH2lgGObrWxhpwQNwXPCsWz8MoPAB'}
+          width={1920}
+          height={1080}
+          priority
+          unoptimized
         />
         <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-center px-margin-mobile">
           <div className="max-w-4xl">
@@ -117,10 +106,13 @@ export default function HomePage() {
                   href={`/category/${cat.slug}`}
                   className={`group relative overflow-hidden aspect-[3/4] text-left block ${idx === 1 ? 'md:mt-24' : ''}`}
                 >
-                  <img
+                  <Image
                     alt={cat.name}
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700"
                     src={categoryImages[cat.id] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDwuF0NGou0jsBNS4WVWNqu7UNvDvzAdBKzI87eLB3EMN3CL_t01aDf1kZ1zug_cQS-I1m8gUjss_Z3zaC1VdWMvVs8ZGPvOnpS5x7JQi7x4IyR9V1KbHz0qH_zz-eXaVZAAn_i9DCQsNVMfNt5IGflrczyBupI1CwhnuzjL_C3szSF15P3ONfXc7udrE0LxrmU20_aJE3bOrROpWt1BgSyuc1lSQHqYXciYx7oNjrM3gKYEt4s1OSiRGCGMQmMmt_NrgOA3TeCHwfE'}
+                    width={480}
+                    height={640}
+                    unoptimized
                   />
                   <div className="absolute bottom-10 left-10 text-white z-10">
                     <h3 className="font-headline-md text-headline-md mb-2">{cat.name}</h3>
@@ -254,17 +246,23 @@ export default function HomePage() {
             </div>
             <div className="order-1 lg:order-2 lg:w-1/3 relative">
               <div className="aspect-[3/4] overflow-hidden">
-                <img
+                <Image
                   alt="Nghệ thuật chế tác"
                   className="w-full h-full object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp-l16AwP6qnAvY0w7qEje5eTMoAP7fM0ilOpPdL-oks5JcSvlc7Db6xvTkCgqLsfjlnNva6_LWXGn8Vrz0S9q_GLLH4qoba-qEDF0uQV3xPJ5jEs_0_Ekei3UfBhXR7pa49ne50YngtJLJOQExSE60NjZMx6TOgYmjAXLeUOb6JY6ejEaTxO4shF6WT-cK9AhAQTs6x-csswVRxoZWDL180gXVmtou8i_PV9TSk_yX-vTEGMCMH1CCspCZisy8zcQ7pORKi8ylRrU"
+                  width={480}
+                  height={640}
+                  unoptimized
                 />
               </div>
               <div className="absolute -bottom-3 -left-3 hidden md:block w-20 aspect-square border-[6px] border-surface shadow-xl">
-                <img
+                <Image
                   alt="Chi tiết phụ kiện"
                   className="w-full h-full object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVVhPUWlcKqwpAIm1j_20LSCQEfb1M4oMIBmaOLRC_Sk8-Gayt4PG5LBYoRgVBTD8pc7nfBneKc27Fx2odZIzenGfC0oIeC7T0ju6gyJ1wT-Mi_kye_dMEH9KBTao7cMM4ReaOsuWrvOEn8wyxPutTfamsKvoV0_IMUUzaTyFwXHm45if9pc4UiMj5FlQAxPNf_iDQJ_VoNYuDQCl2Rx6FMFeTUy3-pMbNKY-MsJpQPxOE5IjLOpmTXUH_MbaNKaBuTtMM44Oy97In"
+                  width={80}
+                  height={80}
+                  unoptimized
                 />
               </div>
             </div>

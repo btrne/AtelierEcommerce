@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { auth, conversations, aiChat, customRequestsApi, upload } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import type { ConversationDto, MessageDto, CustomRequestDto, AiProductSuggestion } from "@/lib/types";
@@ -24,6 +25,15 @@ function formatDate(iso: string) {
   if (diff < 86400000 && d.getDate() === now.getDate()) return formatTime(iso);
   if (diff < 172800000) return "Hôm qua";
   return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  return fallback;
 }
 
 function getConvTitle(c: ConversationDto): string {
@@ -51,7 +61,7 @@ function ProductCard({ product }: { product: AiProductSuggestion }) {
     >
       <div className="w-20 h-20 bg-surface-container-high rounded flex-shrink-0 overflow-hidden">
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          <Image src={product.imageUrl} alt={product.name} width={80} height={80} unoptimized className="w-full h-full object-cover" />
         ) : (
           <span className="material-symbols-outlined text-3xl flex items-center justify-center w-full h-full text-outline">image</span>
         )}
@@ -101,10 +111,10 @@ function GuestAiChat() {
         createdAt: new Date().toISOString(),
         productSuggestions: res.productSuggestions ?? [],
       }]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessages((prev) => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: err?.message || "Xin lỗi, không thể kết nối đến AI. Vui lòng thử lại sau.",
+        text: getErrorMessage(err, "Xin lỗi, không thể kết nối đến AI. Vui lòng thử lại sau."),
         sender: "ai",
         createdAt: new Date().toISOString(),
       }]);
@@ -204,7 +214,7 @@ function ConversationSidebar({
           <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
             <span className="material-symbols-outlined text-3xl text-outline">chat</span>
             <p className="text-sm text-on-surface-variant">Chưa có hội thoại nào</p>
-            <p className="text-xs text-on-surface-variant">Nhấn "Tạo hội thoại" để bắt đầu</p>
+            <p className="text-xs text-on-surface-variant">Nhấn &quot;Tạo hội thoại&quot; để bắt đầu</p>
           </div>
         ) : (
           convs.map((c) => (
@@ -260,11 +270,9 @@ function ConversationSidebar({
 function LoggedInChatView({
   conv,
   onBack,
-  onRefresh,
 }: {
   conv: ConversationDto;
   onBack: () => void;
-  onRefresh: () => void;
 }) {
   const [messages, setMessages] = useState<MessageDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,8 +292,8 @@ function LoggedInChatView({
       const data = Array.isArray(res) ? res : [];
       setMessages(data);
       return data;
-    } catch (err: any) {
-      setLoadError(err?.message || "Không thể tải tin nhắn");
+    } catch (err: unknown) {
+      setLoadError(getErrorMessage(err, "Không thể tải tin nhắn"));
       return null;
     } finally {
       setLoading(false);
@@ -321,13 +329,13 @@ function LoggedInChatView({
         const msg = await conversations.sendMessage(conv.id, text);
         setMessages((prev) => [...prev.slice(0, -1), msg]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
       setMessages((prev) => [...prev, {
         id: -Date.now() - 1,
         conversationId: conv.id,
         sender: "AI",
-        messageText: "⚠️ " + (err?.message || "Không thể gửi tin nhắn, vui lòng thử lại sau."),
+        messageText: "⚠️ " + getErrorMessage(err, "Không thể gửi tin nhắn, vui lòng thử lại sau."),
         imageUrls: [],
         createdAt: new Date().toISOString(),
       }]);
@@ -344,8 +352,8 @@ function LoggedInChatView({
       const { url } = await upload.file(file);
       const msg = await conversations.sendMessage(conv.id, "", [url]);
       setMessages((prev) => [...prev, msg]);
-    } catch (err: any) {
-      showToast(err?.message || "Không thể tải ảnh lên", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Không thể tải ảnh lên"), "error");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -391,7 +399,7 @@ function LoggedInChatView({
                   )}
                   {msg.messageText && <p className="whitespace-pre-wrap">{msg.messageText}</p>}
                   {msg.imageUrls?.map((url, i) => (
-                    <img key={i} src={url} alt="" className="mt-2 max-w-full rounded" />
+                    <Image key={i} src={url} alt="" width={320} height={240} unoptimized className="mt-2 max-w-full rounded" />
                   ))}
                   <p className={`text-[10px] mt-1 ${msg.sender === "Admin" || msg.sender === "AI" ? "text-on-surface-variant" : "text-on-primary/60"}`}>
                     {formatTime(msg.createdAt)}
@@ -457,8 +465,8 @@ function BespokeRequestsView({
   useEffect(() => {
     customRequestsApi.my()
       .then(setRequests)
-      .catch((err: any) => {
-        showToast(err?.message || "Không thể tải yêu cầu chế tác", "error");
+      .catch((err: unknown) => {
+        showToast(getErrorMessage(err, "Không thể tải yêu cầu chế tác"), "error");
       })
       .finally(() => setLoading(false));
   }, [showToast]);
@@ -468,8 +476,8 @@ function BespokeRequestsView({
       await customRequestsApi.confirm(id);
       setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "Confirmed", customerConfirmedAt: new Date().toISOString() } : r));
       if (selected?.id === id) setSelected({ ...selected, status: "Confirmed" });
-    } catch (err: any) {
-      showToast(err?.message || "Không thể xác nhận yêu cầu", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Không thể xác nhận yêu cầu"), "error");
     }
   };
 
@@ -478,8 +486,8 @@ function BespokeRequestsView({
       await customRequestsApi.reject(id);
       setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "Rejected" } : r));
       if (selected?.id === id) setSelected({ ...selected, status: "Rejected" });
-    } catch (err: any) {
-      showToast(err?.message || "Không thể từ chối yêu cầu", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Không thể từ chối yêu cầu"), "error");
     }
   };
 
@@ -509,8 +517,8 @@ function BespokeRequestsView({
                   const convs = await conversations.my();
                   const found = (Array.isArray(convs) ? convs : []).find((c) => c.id === selected.conversationId);
                   if (found) onBackToChat(found);
-                } catch (err: any) {
-                  showToast(err?.message || "Không thể mở hội thoại", "error");
+                } catch (err: unknown) {
+                  showToast(getErrorMessage(err, "Không thể mở hội thoại"), "error");
                 }
               }}
               className="ml-auto text-[10px] text-primary border border-primary/30 px-2 py-0.5"
@@ -521,7 +529,7 @@ function BespokeRequestsView({
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {selected.imageUrl && (
-            <img src={selected.imageUrl} alt="" className="w-full rounded border border-secondary/20" />
+            <Image src={selected.imageUrl} alt="" width={360} height={240} unoptimized className="w-full rounded border border-secondary/20" />
           )}
           {selected.description && (
             <div>
@@ -649,8 +657,12 @@ export default function ChatBox() {
   const isLoggedIn = authReady && profile !== null;
 
   useEffect(() => {
-    setProfile(auth.getProfile());
-    setAuthReady(true);
+    const timeoutId = window.setTimeout(() => {
+      setProfile(auth.getProfile());
+      setAuthReady(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -673,8 +685,8 @@ export default function ChatBox() {
       if (autoSelect && list.length > 0) {
         setSelectedConv((prev) => prev ?? list[0]);
       }
-    } catch (err: any) {
-      showToast(err?.message || "Không thể tải danh sách hội thoại", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Không thể tải danh sách hội thoại"), "error");
     } finally {
       setConvsLoading(false);
     }
@@ -682,9 +694,13 @@ export default function ChatBox() {
 
   useEffect(() => {
     if (open) {
-      const p = auth.getProfile();
-      setProfile(p);
-      setAuthReady(true);
+      const timeoutId = window.setTimeout(() => {
+        const p = auth.getProfile();
+        setProfile(p);
+        setAuthReady(true);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
   }, [open]);
 
@@ -719,8 +735,8 @@ export default function ChatBox() {
       };
       setConvs((prev) => [newConv, ...prev]);
       setSelectedConv(newConv);
-    } catch (err: any) {
-      showToast(err?.message || "Không thể tạo hội thoại mới", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Không thể tạo hội thoại mới"), "error");
     }
   };
 
@@ -762,7 +778,7 @@ export default function ChatBox() {
           ) : showRequests ? (
             <BespokeRequestsView onBackToChat={(conv) => { setShowRequests(false); if (conv) setSelectedConv(conv); }} />
           ) : selectedConv ? (
-            <LoggedInChatView conv={selectedConv} onBack={handleBack} onRefresh={loadConvs} />
+            <LoggedInChatView conv={selectedConv} onBack={handleBack} />
           ) : (
             <ConversationSidebar
               convs={convs}

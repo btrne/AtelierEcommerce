@@ -23,10 +23,11 @@ public class TokenService : ITokenService
     public string GenerateToken(User user, List<string> roles)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"]!;
-        var issuer = jwtSettings["Issuer"]!;
-        var audience = jwtSettings["Audience"]!;
-        var expirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"]!);
+        var secretKey = RequireSetting(jwtSettings, "SecretKey", minLength: 32);
+        var issuer = RequireSetting(jwtSettings, "Issuer");
+        var audience = RequireSetting(jwtSettings, "Audience");
+        if (!int.TryParse(jwtSettings["ExpirationMinutes"], out var expirationMinutes) || expirationMinutes <= 0)
+            throw new InvalidOperationException("JwtSettings:ExpirationMinutes is not configured securely.");
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -49,5 +50,18 @@ public class TokenService : ITokenService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private static string RequireSetting(IConfigurationSection section, string key, int minLength = 1)
+    {
+        var value = section[key]?.Trim();
+        if (string.IsNullOrWhiteSpace(value) ||
+            value.Length < minLength ||
+            value.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"JwtSettings:{key} is not configured securely.");
+        }
+
+        return value;
     }
 }

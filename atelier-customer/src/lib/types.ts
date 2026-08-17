@@ -100,6 +100,7 @@ export interface ProductVariantDto {
   price: number;
   weight: number | null;
   stockQuantity: number;
+  isDefault?: boolean;
   thumbnailUrl: string | null;
   images: string[];
   attributes?: VariantAttributeDto[];
@@ -178,7 +179,7 @@ export interface CheckoutItem {
 }
 
 export interface CreateOrderRequest {
-  userId?: number;
+  sessionId?: string;
   recipientName: string;
   recipientPhone: string;
   shippingAddress: string;
@@ -215,7 +216,6 @@ export interface ActiveVoucherDto {
 export interface ApplyVoucherRequest {
   code: string;
   orderTotal: number;
-  userId?: number;
 }
 
 export interface ApplyVoucherResponse {

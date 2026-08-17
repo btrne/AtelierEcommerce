@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef, Fragment, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { products as productsApi, categories as categoriesApi, collections as collectionsApi, attributes as attributesApi } from "@/lib/api";
 import type { ProductCustomerDto, CategoryDto, CollectionDto, AttributeDto } from "@/lib/types";
@@ -98,8 +98,6 @@ function ProductsPageContentMain({
   hideCategoryFilter,
 }: Props) {
   const searchParams = useSearchParams();
-  const router = useRouter();
-
   const [allProducts, setAllProducts] = useState<ProductCustomerDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [collections, setCollections] = useState<CollectionDto[]>([]);
@@ -207,7 +205,11 @@ function ProductsPageContentMain({
   const filterBarRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    const timeoutId = window.setTimeout(() => {
+      setMounted(true);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -246,7 +248,6 @@ function ProductsPageContentMain({
 
   useEffect(() => {
     const params: Record<string, string | number | boolean | undefined> = {};
-    setLoading(true);
     if (selectedCategoryIds.length > 0) params.categoryIds = selectedCategoryIds.join(",");
     if (selectedCollectionIds.length > 0) params.collectionIds = selectedCollectionIds.join(",");
     if (selectedAttributeOptionIds.length > 0) params.attributeOptionIds = selectedAttributeOptionIds.join(",");
@@ -257,10 +258,15 @@ function ProductsPageContentMain({
     if (inStock) params.inStock = true;
     if (isPreorder) params.isPreorder = true;
     if (sortBy) params.sortBy = sortBy;
-    productsApi.list(Object.keys(params).length > 0 ? params : undefined)
-      .then(setAllProducts)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const timeoutId = window.setTimeout(() => {
+      setLoading(true);
+      productsApi.list(Object.keys(params).length > 0 ? params : undefined)
+        .then(setAllProducts)
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [selectedCategoryIds, selectedCollectionIds, selectedAttributeOptionIds, debouncedSearch, priceRange, minRating, inStock, isPreorder, sortBy]);
 
   const totalCount = allProducts.length;

@@ -134,9 +134,13 @@ namespace Atelier.Api.Controllers.Auth
         [HttpPut("address/{id}")]
         public async Task<IActionResult> UpdateAddress(int id, [FromBody] UpdateAddressRequest request)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
             var address = await _context.UserAddresses
                 .Include(a => a.User)
-                .FirstOrDefaultAsync(a => a.Id == id);
+                .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
             if (address == null)
                 return NotFound(new { Error = "Địa chỉ không tìm thấy." });
 
@@ -197,7 +201,12 @@ namespace Atelier.Api.Controllers.Auth
         [HttpDelete("address/{id}")]
         public async Task<IActionResult> DeleteAddress(int id)
         {
-            var address = await _context.UserAddresses.FindAsync(id);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            var address = await _context.UserAddresses
+                .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
             if (address == null)
                 return NotFound(new { Error = "Địa chỉ không tìm thấy." });
 

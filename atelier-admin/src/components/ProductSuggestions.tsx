@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { AiProductSuggestion } from "@/lib/types";
 
 const CUSTOMER_BASE = process.env.NEXT_PUBLIC_CUSTOMER_URL || "http://localhost:3001";
@@ -17,7 +18,7 @@ export default function ProductSuggestions({ suggestions }: { suggestions: AiPro
             className="flex items-center gap-3 p-2 border border-outline-variant rounded hover:bg-surface-container-low transition-colors min-w-0 max-w-[260px]"
           >
             {p.imageUrl && (
-              <img src={p.imageUrl} alt="" className="w-12 h-12 object-cover shrink-0 rounded" />
+              <Image src={p.imageUrl} alt="" width={48} height={48} unoptimized className="w-12 h-12 object-cover shrink-0 rounded" />
             )}
             <div className="min-w-0 flex-1">
               <p className="font-body-md text-body-md font-medium truncate">{p.name}</p>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useRef } from "react";
 import { collections as collectionsApi, products as productsApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -16,7 +16,6 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", minimumFractionDigits: 0 }).format(amount);
 
 export default function CollectionsPage() {
-  const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [data, setData] = useState<CollectionAdminDto[]>([]);
@@ -28,12 +27,6 @@ export default function CollectionsPage() {
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const autoSlug = (name: string) => name.toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
-  useEffect(() => {
-    if (!slugManuallyEdited && form.name) {
-      setForm((prev) => ({ ...prev, slug: autoSlug(prev.name) }));
-    }
-  }, [form.name, slugManuallyEdited]);
 
   // Product management state
   const [productModalCollection, setProductModalCollection] = useState<CollectionAdminDto | null>(null);
@@ -53,12 +46,18 @@ export default function CollectionsPage() {
     setLoading(true);
     collectionsApi
       .admin()
-      .then((res: any) => setData(Array.isArray(res) ? res : res.items))
+      .then((res) => setData(res))
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchData();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const openCreate = () => {
     setEditing(null);
@@ -87,8 +86,8 @@ export default function CollectionsPage() {
       }
       setModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -100,8 +99,8 @@ export default function CollectionsPage() {
         await collectionsApi.delete(id);
         showToast("Xóa bộ sưu tập thành công", "success");
         fetchData();
-      } catch (err: any) {
-        showToast(err.message || "Lỗi", "error");
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : "Lỗi", "error");
       }
     }
   };
@@ -141,8 +140,8 @@ export default function CollectionsPage() {
       setCollectionProducts(products);
       setAddProductModal(false);
       fetchData();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     } finally {
       setAddingProduct(null);
     }
@@ -156,8 +155,8 @@ export default function CollectionsPage() {
       showToast("Đã xóa sản phẩm khỏi bộ sưu tập");
       setCollectionProducts((prev) => prev.filter((p) => p.id !== productId));
       fetchData();
-    } catch (err: any) {
-      showToast(err.message || "Lỗi", "error");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Lỗi", "error");
     }
   };
 
@@ -185,7 +184,7 @@ export default function CollectionsPage() {
             <div key={col.id} className="border border-outline-variant bg-surface p-4 space-y-3 cursor-pointer" onClick={() => openProductModal(col)}>
               <div className="w-full h-36 bg-surface-container-high flex items-center justify-center overflow-hidden">
                 {col.bannerImageUrl ? (
-                  <img src={col.bannerImageUrl} alt={col.name} className="w-full h-full object-cover" />
+                  <Image src={col.bannerImageUrl} alt={col.name} width={420} height={144} unoptimized className="w-full h-full object-cover" />
                 ) : (
                   <span className="material-symbols-outlined text-3xl text-on-surface-variant/30">collections</span>
                 )}
@@ -234,7 +233,10 @@ export default function CollectionsPage() {
           <label className="block font-label-caps text-label-caps text-on-surface-variant mb-1">TÊN BỘ SƯU TẬP</label>
           <input
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => {
+              const name = e.target.value;
+              setForm({ ...form, name, slug: slugManuallyEdited ? form.slug : autoSlug(name) });
+            }}
             placeholder="Nhập tên"
             className="w-full border-b border-outline-variant bg-surface pb-2 font-body-md text-body-md outline-none focus:border-primary"
           />
@@ -301,7 +303,7 @@ export default function CollectionsPage() {
             {collectionProducts.map((p) => (
               <div key={p.id} className="flex items-center gap-3 p-2 border border-outline-variant/50">
                 {p.thumbnailUrl ? (
-                  <img src={p.thumbnailUrl} alt="" className="w-12 h-12 object-cover bg-surface-container-high shrink-0" />
+                  <Image src={p.thumbnailUrl} alt="" width={48} height={48} unoptimized className="w-12 h-12 object-cover bg-surface-container-high shrink-0" />
                 ) : (
                   <div className="w-12 h-12 bg-surface-container-high flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined text-on-surface-variant/30">image</span>
@@ -349,7 +351,7 @@ export default function CollectionsPage() {
               filteredProducts.map((p) => (
                 <div key={p.id} className="flex items-center gap-3 p-2 border border-outline-variant/50 hover:bg-surface-container-high transition-colors">
                   {p.thumbnailUrl ? (
-                    <img src={p.thumbnailUrl} alt="" className="w-14 h-14 object-cover bg-surface-container-high shrink-0" />
+                    <Image src={p.thumbnailUrl} alt="" width={56} height={56} unoptimized className="w-14 h-14 object-cover bg-surface-container-high shrink-0" />
                   ) : (
                     <div className="w-14 h-14 bg-surface-container-high flex items-center justify-center shrink-0">
                       <span className="material-symbols-outlined text-on-surface-variant/30">image</span>
@@ -397,7 +399,7 @@ export default function CollectionsPage() {
           onSubmit={async (formData: ProductFormData) => {
             setCreateProductLoading(true);
             try {
-              const created = await productsApi.create(formData as any);
+              const created = await productsApi.create(formData);
               if (productModalCollection) {
                 await collectionsApi.addProduct(productModalCollection.id, created.id);
               }
@@ -408,8 +410,8 @@ export default function CollectionsPage() {
                 setCollectionProducts(products);
               }
               fetchData();
-            } catch (err: any) {
-              showToast(err.message || "Lỗi", "error");
+            } catch (err: unknown) {
+              showToast(err instanceof Error ? err.message : "Lỗi", "error");
             } finally {
               setCreateProductLoading(false);
             }
